@@ -20,11 +20,15 @@ import {
   Sparkles,
   ChevronRight,
   Menu,
-  Plus
+  Plus,
+  UserPlus,
+  ScanLine
 } from "lucide-react";
 import { Message, Peer, PendingFile } from "../types";
 import { formatBytes, getAvatarGradient, getInitials, MAX_FILE_SIZE_BYTES, playNotificationSound } from "../utils";
 import Lightbox from "./Lightbox";
+import QrGenerator from "./QrGenerator";
+import QrScanner from "./QrScanner";
 import { db } from "../firebase";
 import { ref as dbRef, set, get } from "firebase/database";
 import { AlertCircle } from "lucide-react";
@@ -163,6 +167,7 @@ interface ChatRoomProps {
   onDeleteMessage: (messageId: string) => void;
   onSetTyping?: (isTyping: boolean) => void;
   onLeaveRoom: () => void;
+  onScanSuccess?: (targetId: string) => void;
   isDarkMode: boolean;
 }
 
@@ -179,12 +184,15 @@ export default function ChatRoom({
   onDeleteMessage,
   onSetTyping,
   onLeaveRoom,
+  onScanSuccess,
   isDarkMode,
 }: ChatRoomProps) {
   const [inputText, setInputText] = useState("");
   const [attachments, setAttachments] = useState<PendingFile[]>([]);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showPlusMenu, setShowPlusMenu] = useState(false);
+  const [showAddMember, setShowAddMember] = useState(false);
+  const [showJoinChat, setShowJoinChat] = useState(false);
   // Default sidebar closed on mobile (less than 768px wide)
   const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth >= 768);
   const [isUploading, setIsUploading] = useState(false);
@@ -427,6 +435,26 @@ export default function ChatRoom({
           </div>
 
           <div id="header-right" className="flex items-center gap-1.5 md:gap-2">
+            <button
+              id="btn-add-member-inline"
+              onClick={() => setShowAddMember(true)}
+              className="flex items-center gap-1 py-1.5 px-2.5 md:px-3 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-400 border border-cyan-500/20 font-bold uppercase tracking-wider text-[9px] md:text-[10px] transition-all cursor-pointer"
+              title="Add member"
+            >
+              <UserPlus className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Add Member</span>
+            </button>
+            
+            <button
+              id="btn-join-chat-inline"
+              onClick={() => setShowJoinChat(true)}
+              className="flex items-center gap-1 py-1.5 px-2.5 md:px-3 rounded-xl bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-400 border border-indigo-500/20 font-bold uppercase tracking-wider text-[9px] md:text-[10px] transition-all cursor-pointer"
+              title="Join chat"
+            >
+              <ScanLine className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Join Chat</span>
+            </button>
+
             <button
               id="btn-toggle-sidebar"
               onClick={() => setSidebarOpen((prev) => !prev)}
@@ -907,6 +935,49 @@ export default function ChatRoom({
           imageName={lightboxImage.name}
           onClose={() => setLightboxImage(null)}
         />
+      )}
+
+      {/* Add Member Modal */}
+      {showAddMember && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="relative w-full max-w-sm animate-scale-up">
+            <button
+              onClick={() => setShowAddMember(false)}
+              className="absolute top-4 right-4 p-1.5 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white z-10 cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <QrGenerator
+              sessionId={sessionId}
+              sessionName={sessionName}
+              avatarSeed={avatarSeed}
+              onRefresh={() => {}}
+              isDarkMode={isDarkMode}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Join Chat Modal */}
+      {showJoinChat && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="relative w-full max-w-md animate-scale-up">
+            <button
+              onClick={() => setShowJoinChat(false)}
+              className="absolute top-4 right-4 p-1.5 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white z-10 cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <QrScanner
+              onScanSuccess={(targetId) => {
+                setShowJoinChat(false);
+                onScanSuccess?.(targetId);
+              }}
+              onCancel={() => setShowJoinChat(false)}
+              isDarkMode={isDarkMode}
+            />
+          </div>
+        </div>
       )}
     </div>
   );

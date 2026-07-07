@@ -649,6 +649,7 @@ export default function App() {
                 onDeleteMessage={deleteMessage}
                 onSetTyping={handleSetTyping}
                 onLeaveRoom={leaveRoom}
+                onScanSuccess={requestConnection}
                 isDarkMode={isDarkMode}
               />
             </div>

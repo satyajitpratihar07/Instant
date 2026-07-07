@@ -2,8 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
 import { Copy, Check, RefreshCw, Smartphone, QrCode } from "lucide-react";
 import { getAvatarGradient, getInitials } from "../utils";
-import { db } from "../firebase";
-import { ref as dbRef, set, remove } from "firebase/database";
 
 interface QrGeneratorProps {
   sessionId: string;
@@ -22,43 +20,7 @@ export default function QrGenerator({
 }: QrGeneratorProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [copied, setCopied] = useState(false);
-  const [copiedCode, setCopiedCode] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [inviteCode, setInviteCode] = useState<string | null>(null);
-
-  // Generate and register 6-digit code on mount/refresh
-  useEffect(() => {
-    if (!sessionId) return;
-    
-    // Generate a random 6-digit number
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-    setInviteCode(code);
-    
-    const registerCode = async () => {
-      try {
-        await set(dbRef(db, `codes/${code}`), {
-          sessionId,
-          createdAt: Date.now(),
-        });
-      } catch (err) {
-        console.error("Error registering code:", err);
-      }
-    };
-    registerCode();
-
-    return () => {
-      remove(dbRef(db, `codes/${code}`)).catch((err) => {
-        console.error("Error removing code registration:", err);
-      });
-    };
-  }, [sessionId]);
-
-  const handleCopyCode = () => {
-    if (!inviteCode) return;
-    navigator.clipboard.writeText(inviteCode);
-    setCopiedCode(true);
-    setTimeout(() => setCopiedCode(false), 2000);
-  };
 
   // Generate invite link based on current origin
   const inviteLink = `${window.location.origin}?scan=${sessionId}`;
@@ -107,18 +69,16 @@ export default function QrGenerator({
       {/* Premium Glassmorphism Card */}
       <div
         id="qr-card"
-        className={`relative w-full max-w-sm rounded-3xl p-6 transition-all duration-300 shadow-2xl border ${
-          isDarkMode
+        className={`relative w-full max-w-sm rounded-3xl p-6 transition-all duration-300 shadow-2xl border ${isDarkMode
             ? "bg-sleek-card border-white/5 shadow-cyan-500/5"
             : "bg-white/90 border-slate-200/80 shadow-slate-200/50"
-        }`}
+          }`}
       >
         {/* Glow behind card */}
         <div
           id="qr-card-glow"
-          className={`absolute -inset-0.5 rounded-3xl blur opacity-25 group-hover:opacity-100 transition duration-1000 group-hover:duration-200 animate-pulse -z-10 bg-gradient-to-r ${
-            isDarkMode ? "from-cyan-500 to-indigo-500" : "from-blue-400 to-indigo-400"
-          }`}
+          className={`absolute -inset-0.5 rounded-3xl blur opacity-25 group-hover:opacity-100 transition duration-1000 group-hover:duration-200 animate-pulse -z-10 bg-gradient-to-r ${isDarkMode ? "from-cyan-500 to-indigo-500" : "from-blue-400 to-indigo-400"
+            }`}
         ></div>
 
         {/* User Info Header */}
@@ -151,41 +111,17 @@ export default function QrGenerator({
           </p>
         </div>
 
-        {/* Invite Code Display */}
-        {inviteCode && (
-          <div
-            id="invite-code-box"
-            onClick={handleCopyCode}
-            className={`mt-4 p-4 rounded-2xl border text-center cursor-pointer transition-all hover:scale-[1.01] active:scale-[0.99] relative overflow-hidden select-none ${
-              copiedCode
-                ? "border-emerald-500 bg-emerald-500/10"
-                : isDarkMode
-                ? "bg-white/5 border-cyan-500/20 hover:border-cyan-500/40"
-                : "bg-slate-50 border-slate-200 hover:border-slate-300"
-            }`}
-            title="Click to copy invite code"
-          >
-            <p className={`text-[10px] uppercase font-bold tracking-wider ${copiedCode ? "text-emerald-400" : isDarkMode ? "text-cyan-400" : "text-indigo-600"} mb-1`}>
-              {copiedCode ? "Copied Code!" : "Or Share Invite Code"}
-            </p>
-            <h4 className={`text-2xl font-black tracking-widest font-mono ${copiedCode ? "text-emerald-400" : isDarkMode ? "text-white" : "text-slate-800"}`}>
-              {inviteCode.substring(0, 3)} {inviteCode.substring(3, 6)}
-            </h4>
-          </div>
-        )}
-
         {/* Action Buttons */}
         <div id="qr-actions" className="flex flex-col gap-3 mt-6">
           <button
             id="btn-copy-link"
             onClick={handleCopyLink}
-            className={`flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl font-bold transition-all duration-200 cursor-pointer text-xs uppercase tracking-wider hover:scale-[1.01] ${
-              copied
+            className={`flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl font-bold transition-all duration-200 cursor-pointer text-xs uppercase tracking-wider hover:scale-[1.01] ${copied
                 ? "bg-emerald-500 text-white"
                 : isDarkMode
-                ? "bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white shadow-lg shadow-cyan-500/15"
-                : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/15"
-            }`}
+                  ? "bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white shadow-lg shadow-cyan-500/15"
+                  : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/15"
+              }`}
           >
             {copied ? (
               <>
@@ -205,11 +141,10 @@ export default function QrGenerator({
               id="btn-refresh-qr"
               onClick={handleRefresh}
               disabled={isRefreshing}
-              className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl font-bold text-[10px] uppercase tracking-wider border transition-all cursor-pointer disabled:opacity-50 ${
-                isDarkMode
+              className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl font-bold text-[10px] uppercase tracking-wider border transition-all cursor-pointer disabled:opacity-50 ${isDarkMode
                   ? "border-white/10 text-slate-300 bg-white/5 hover:bg-white/10 hover:text-white"
                   : "border-slate-200 text-slate-600 bg-slate-50 hover:bg-slate-100"
-              }`}
+                }`}
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
               Refresh
@@ -228,11 +163,10 @@ export default function QrGenerator({
                   handleCopyLink();
                 }
               }}
-              className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl font-bold text-[10px] uppercase tracking-wider border transition-all cursor-pointer ${
-                isDarkMode
+              className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl font-bold text-[10px] uppercase tracking-wider border transition-all cursor-pointer ${isDarkMode
                   ? "border-white/10 text-slate-300 bg-white/5 hover:bg-white/10 hover:text-white"
                   : "border-slate-200 text-slate-600 bg-slate-50 hover:bg-slate-100"
-              }`}
+                }`}
             >
               <Smartphone className="w-3.5 h-3.5" />
               Share
