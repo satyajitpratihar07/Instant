@@ -814,8 +814,8 @@ async function startServer() {
     });
   });
 
-  // --- Vite Middleware Integration ---
-  if (process.env.NODE_ENV !== "production") {
+  const isProd = process.env.NODE_ENV === "production" || !!process.env.PORT;
+  if (!isProd) {
     const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: {
