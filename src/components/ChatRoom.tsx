@@ -684,7 +684,11 @@ export default function ChatRoom({
 
                       {/* Text content rendering */}
                       {msg.text && (
-                        <p id="message-text" className="whitespace-pre-wrap break-words leading-relaxed select-text font-medium text-slate-100">
+                        <p id="message-text" className={`whitespace-pre-wrap break-words leading-relaxed select-text font-medium ${
+                          isMe
+                            ? "text-white"
+                            : isDarkMode ? "text-slate-100" : "text-slate-900"
+                        }`}>
                           {msg.text}
                         </p>
                       )}

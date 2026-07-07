@@ -999,25 +999,20 @@ export default function App() {
           )}
         </main>
 
-        {/* Global Footer (Status Micro-Rail inspired by Sleek Theme) */}
+        {/* Global Footer — minimal credit */}
         <footer
           id="global-footer"
-          className={`py-3 px-6 mt-auto rounded-xl border select-none transition-colors duration-300 flex flex-col sm:flex-row items-center justify-between gap-3 text-[10px] font-mono tracking-wider ${isDarkMode
-            ? "bg-[#0E0E12] border-white/5 text-slate-500"
-            : "bg-white border-slate-200/80 text-slate-600 shadow-sm"
-            }`}
+          className={`py-3 px-6 mt-auto select-none transition-colors duration-300 flex items-center justify-center ${isDarkMode ? "text-slate-600" : "text-slate-400"}`}
         >
-          <div className="flex flex-wrap items-center gap-4 sm:gap-6">
-            <div className="flex items-center gap-2">
-              <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-pulse"></div>
-              <span className="uppercase font-bold">WebSocket: Secured</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full"></div>
-              <span className="uppercase font-bold">Encryption: AES-256</span>
-            </div>
-          </div>
-          <p className="uppercase opacity-80 font-bold text-cyan-400">Developed by Satyajit Pratihar</p>
+          <p className="text-[10px] font-bold uppercase tracking-[0.25em]">
+            <span className={`px-2.5 py-1 rounded-lg font-black ${
+              isDarkMode
+                ? "text-cyan-400 bg-cyan-500/10 border border-cyan-500/20"
+                : "text-indigo-600 bg-indigo-500/10 border border-indigo-500/20"
+            }`}>
+              Developed by Satyajit Pratihar
+            </span>
+          </p>
         </footer>
       </div>
 
