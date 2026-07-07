@@ -675,7 +675,7 @@ export default function App() {
               <span className="uppercase font-bold">Encryption: AES-256</span>
             </div>
           </div>
-          <p className="uppercase opacity-80">© 2026 InstantP2P | Latency: ~12ms</p>
+          <p className="uppercase opacity-80 font-bold text-cyan-400">Developed by Satyajit Pratihar</p>
         </footer>
       </div>
 
