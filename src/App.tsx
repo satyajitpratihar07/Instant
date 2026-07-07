@@ -85,14 +85,24 @@ export default function App() {
       update(ref(db, `sessions/${session.id}`), {
         lastActive: Date.now()
       });
+      if (session.connectedRoomId) {
+        update(ref(db, `rooms/${session.connectedRoomId}/members/${session.id}`), {
+          lastActive: Date.now()
+        });
+      }
     }, 10000);
 
     update(ref(db, `sessions/${session.id}`), {
       lastActive: Date.now()
     });
+    if (session.connectedRoomId) {
+      update(ref(db, `rooms/${session.connectedRoomId}/members/${session.id}`), {
+        lastActive: Date.now()
+      });
+    }
 
     return () => clearInterval(interval);
-  }, [session?.id]);
+  }, [session?.id, session?.connectedRoomId]);
 
   // --- Real-time Session listener (incoming requests & pairing status) ---
   useEffect(() => {
@@ -143,11 +153,13 @@ export default function App() {
   }, [session?.id, session?.connectedRoomId]);
 
   // --- Real-time Chat Room & Peer sync listener ---
+  const [roomMembers, setRoomMembers] = useState<Peer[]>([]);
+  const [typingText, setTypingText] = useState("");
+
   useEffect(() => {
     if (!session?.connectedRoomId || !session?.id) {
-      setPeer(null);
-      setPeerOnline(false);
-      setPeerTyping(false);
+      setRoomMembers([]);
+      setTypingText("");
       setMessages([]);
       return;
     }
@@ -155,14 +167,11 @@ export default function App() {
     const roomId = session.connectedRoomId;
     const roomRef = ref(db, `rooms/${roomId}`);
     
-    let peerUnsubscribe: (() => void) | null = null;
-
     const roomUnsubscribe = onValue(roomRef, (snapshot) => {
       if (!snapshot.exists()) {
         // Room was closed/deleted
-        setPeer(null);
-        setPeerOnline(false);
-        setPeerTyping(false);
+        setRoomMembers([]);
+        setTypingText("");
         setMessages([]);
         setSession((prev) => prev ? { ...prev, connectedRoomId: null } : null);
         setView("home");
@@ -171,14 +180,13 @@ export default function App() {
       }
 
       const roomData = snapshot.val();
-      const peerId = roomData.peerA === session.id ? roomData.peerB : roomData.peerA;
       
       // Sync messages
       if (roomData.messages) {
         const msgList: Message[] = Object.entries(roomData.messages).map(([id, val]: [string, any]) => ({
           id,
           senderId: val.senderId,
-          senderName: val.senderId === session.id ? session.name : (peer?.name || "Peer"),
+          senderName: val.senderId === session.id ? session.name : (val.senderName || "Member"),
           text: val.text,
           timestamp: val.timestamp,
           file: val.file || undefined
@@ -198,37 +206,36 @@ export default function App() {
         setMessages([]);
       }
 
-      // Sync typing
-      if (roomData.typing && peerId) {
-        setPeerTyping(!!roomData.typing[peerId]);
-      } else {
-        setPeerTyping(false);
-      }
+      // Sync members list
+      const membersMap = roomData.members || {};
+      const membersList: Peer[] = Object.entries(membersMap).map(([id, val]: [string, any]) => ({
+        id,
+        name: val.name || "Member",
+        avatarSeed: val.avatarSeed || id,
+        online: Date.now() - (val.lastActive || 0) < 25000
+      }));
+      setRoomMembers(membersList);
 
-      // Sync peer profile and heartbeat online check
-      if (peerId && !peerUnsubscribe) {
-        const peerRef = ref(db, `sessions/${peerId}`);
-        peerUnsubscribe = onValue(peerRef, (peerSnapshot) => {
-          if (peerSnapshot.exists()) {
-            const peerData = peerSnapshot.val();
-            const isOnline = Date.now() - (peerData.lastActive || 0) < 25000;
-            setPeer({
-              id: peerId,
-              name: peerData.name,
-              avatarSeed: peerData.avatarSeed,
-              online: isOnline
-            });
-            setPeerOnline(isOnline);
-          }
-        });
+      // Sync typing
+      if (roomData.typing) {
+        const typingList = Object.entries(roomData.typing)
+          .filter(([id, typing]) => id !== session.id && typing)
+          .map(([id]) => membersMap[id]?.name || "Someone");
+        
+        if (typingList.length > 0) {
+          setTypingText(`${typingList.join(", ")} ${typingList.length > 1 ? "are" : "is"} typing...`);
+        } else {
+          setTypingText("");
+        }
+      } else {
+        setTypingText("");
       }
     });
 
     return () => {
       roomUnsubscribe();
-      if (peerUnsubscribe) peerUnsubscribe();
     };
-  }, [session?.connectedRoomId, session?.id, peer?.name]);
+  }, [session?.connectedRoomId, session?.id]);
 
   // --- Handshake & Register Session ---
   useEffect(() => {
@@ -295,34 +302,89 @@ export default function App() {
     initializeSession();
   }, []);
 
-  // --- Dispatch Connection Request ---
+  // --- Create Group Room & Open Invite (Add Member from Home) ---
+  const handleAddMemberHome = async () => {
+    if (!session) return;
+    const newRoomId = `room-${generateUUID()}`;
+    try {
+      await set(ref(db, `rooms/${newRoomId}/members/${session.id}`), {
+        id: session.id,
+        name: session.name,
+        avatarSeed: session.avatarSeed,
+        lastActive: Date.now()
+      });
+      await update(ref(db, `sessions/${session.id}`), {
+        connectedRoomId: newRoomId
+      });
+      localStorage.setItem("auto_open_add_member", "true");
+      setView("chat");
+      addToast("New secure chat room created!", "success");
+    } catch (err) {
+      console.error("Error creating room from home:", err);
+      addToast("Failed to create chat room.", "error");
+    }
+  };
+
+  // --- Join Room / Connection Request Handler ---
   const requestConnection = async (targetId: string, currentSession = session) => {
     const activeSess = currentSession || session;
     if (!activeSess) return;
 
     if (targetId === activeSess.id) {
-      addToast("You cannot pair with your own session QR code.", "error");
+      addToast("You cannot pair with your own session.", "error");
       return;
     }
 
     setIsConnecting(true);
-    setWaitingForResponse("Peer");
 
     try {
-      await set(ref(db, `sessions/${targetId}/incomingRequests/${activeSess.id}`), {
-        id: activeSess.id,
-        name: activeSess.name,
-        avatarSeed: activeSess.avatarSeed
-      });
-      await update(ref(db, `sessions/${activeSess.id}`), {
-        pairingStatus: { type: "pending", targetId }
-      });
-      addToast("Pairing request delivered successfully!", "success");
+      let targetRoomId = "";
+      if (targetId.startsWith("room-")) {
+        targetRoomId = targetId;
+      } else {
+        // Fallback for direct session pairing link
+        const sessionSnap = await get(ref(db, `sessions/${targetId}`));
+        if (sessionSnap.exists()) {
+          const sessData = sessionSnap.val();
+          if (sessData.connectedRoomId) {
+            targetRoomId = sessData.connectedRoomId;
+          } else {
+            targetRoomId = `room-${generateUUID()}`;
+            await set(ref(db, `rooms/${targetRoomId}/members/${targetId}`), {
+              id: targetId,
+              name: sessData.name,
+              avatarSeed: sessData.avatarSeed,
+              lastActive: sessData.lastActive || Date.now()
+            });
+            await update(ref(db, `sessions/${targetId}`), {
+              connectedRoomId: targetRoomId
+            });
+          }
+        } else {
+          addToast("Target session not found.", "error");
+          setIsConnecting(false);
+          return;
+        }
+      }
+
+      if (targetRoomId) {
+        await set(ref(db, `rooms/${targetRoomId}/members/${activeSess.id}`), {
+          id: activeSess.id,
+          name: activeSess.name,
+          avatarSeed: activeSess.avatarSeed,
+          lastActive: Date.now()
+        });
+        await update(ref(db, `sessions/${activeSess.id}`), {
+          connectedRoomId: targetRoomId
+        });
+        setView("chat");
+        addToast("Joined the chat room successfully!", "success");
+      }
     } catch (e) {
-      console.error("Pairing request failed:", e);
+      console.error("Joining room failed:", e);
+      addToast("Failed to join the chat room.", "error");
+    } finally {
       setIsConnecting(false);
-      setWaitingForResponse(null);
-      addToast("Failed to send pairing request.", "error");
     }
   };
 
@@ -371,18 +433,18 @@ export default function App() {
     const roomId = session.connectedRoomId;
     
     try {
+      await remove(ref(db, `rooms/${roomId}/members/${session.id}`));
+      
       const roomSnap = await get(ref(db, `rooms/${roomId}`));
       if (roomSnap.exists()) {
         const roomData = roomSnap.val();
-        const peerId = roomData.peerA === session.id ? roomData.peerB : roomData.peerA;
-        if (peerId) {
-          await update(ref(db, `sessions/${peerId}`), { connectedRoomId: null });
+        const remainingMembers = roomData.members ? Object.keys(roomData.members) : [];
+        if (remainingMembers.length === 0) {
+          await remove(ref(db, `rooms/${roomId}`));
         }
       }
 
-      await remove(ref(db, `rooms/${roomId}`));
       await update(ref(db, `sessions/${session.id}`), { connectedRoomId: null });
-      
       setView("home");
       addToast("You left the chat room. Session closed.", "info");
     } catch (e) {
@@ -403,6 +465,7 @@ export default function App() {
       await set(newMsgRef, {
         id: newMsgRef.key,
         senderId: session.id,
+        senderName: session.name,
         text,
         timestamp: Date.now(),
         file: fileId ? { id: fileId, ...fileMeta } : null
@@ -566,7 +629,7 @@ export default function App() {
               <div id="action-buttons-grid" className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-md mx-auto select-none">
                 <button
                   id="btn-generate-flow"
-                  onClick={() => setView("generate")}
+                  onClick={handleAddMemberHome}
                   className="flex flex-col items-center gap-4 p-6 rounded-3xl border transition-all duration-300 cursor-pointer bg-gradient-to-tr from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white shadow-xl shadow-cyan-500/10 border-white/5 hover:scale-[1.02] group"
                 >
                   <div className="p-4 rounded-2xl bg-white/10 text-white">
@@ -634,17 +697,16 @@ export default function App() {
             </div>
           )}
 
-          {view === "chat" && session && peer && (
+          {view === "chat" && session && (
             <div id="chat-view" className="animate-scale-up w-full h-full max-w-5xl mx-auto">
               <ChatRoom
                 roomId={session.connectedRoomId || ""}
                 sessionId={session.id}
                 sessionName={session.name}
                 avatarSeed={session.avatarSeed}
-                peer={peer}
+                members={roomMembers}
+                typingText={typingText}
                 messages={messages}
-                peerOnline={peerOnline}
-                peerTyping={peerTyping}
                 onSendMessage={sendMessage}
                 onDeleteMessage={deleteMessage}
                 onSetTyping={handleSetTyping}
