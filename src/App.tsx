@@ -267,8 +267,9 @@ export default function App() {
       onDisconnect(myMemberRef).remove();
       onDisconnect(myTypingRef).remove();
 
-      // If no other peers are present, delete the entire room on disconnect
-      if (peersList.length === 0) {
+      // If the current user is the host/creator, delete the entire room on disconnect to end session for all users
+      const isHost = roomData.creatorId === session.id || (!roomData.creatorId && Object.keys(membersMap)[0] === session.id);
+      if (isHost) {
         onDisconnect(roomNodeRef).remove();
       } else {
         onDisconnect(roomNodeRef).cancel();
@@ -386,6 +387,7 @@ export default function App() {
     try {
       await set(ref(db, `rooms/${newRoomId}`), {
         id: newRoomId,
+        creatorId: session.id, // Store host session ID
         createdTime: Date.now(),
         members: {
           [session.id]: {
