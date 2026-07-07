@@ -183,7 +183,8 @@ export default function ChatRoom({
   const [inputText, setInputText] = useState("");
   const [attachments, setAttachments] = useState<PendingFile[]>([]);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  // Default sidebar closed on mobile (less than 768px wide)
+  const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth >= 768);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -370,7 +371,7 @@ export default function ChatRoom({
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      className={`flex h-[88vh] md:h-[82vh] relative w-full overflow-hidden rounded-3xl border transition-all duration-300 shadow-2xl backdrop-blur-md ${
+      className={`flex h-[85vh] md:h-[82vh] relative w-full overflow-hidden rounded-none md:rounded-3xl border-0 md:border transition-all duration-300 shadow-2xl backdrop-blur-md ${
         isDarkMode
           ? "bg-[#0E0E12]/80 border-white/5 shadow-cyan-500/5"
           : "bg-white/80 border-slate-200/80 shadow-slate-200/40"
@@ -390,7 +391,7 @@ export default function ChatRoom({
         {/* Chat Header */}
         <header
           id="chat-header"
-          className={`flex items-center justify-between px-6 py-4 border-b ${
+          className={`flex items-center justify-between px-4 md:px-6 py-3 md:py-4 border-b ${
             isDarkMode ? "border-white/5 bg-[#0E0E12]/90" : "border-slate-200/60 bg-white/60"
           }`}
         >
@@ -398,7 +399,7 @@ export default function ChatRoom({
             <div id="peer-avatar-wrapper" className="relative">
               <div
                 id="peer-avatar"
-                className={`w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold bg-gradient-to-br shadow-md ${getAvatarGradient(
+                className={`w-9 h-9 md:w-10 md:h-10 rounded-xl flex items-center justify-center text-white font-bold bg-gradient-to-br shadow-md ${getAvatarGradient(
                   peer.avatarSeed
                 )}`}
               >
@@ -406,7 +407,7 @@ export default function ChatRoom({
               </div>
               <span
                 id="peer-online-indicator"
-                className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 transition-colors ${
+                className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 md:w-3.5 md:h-3.5 rounded-full border-2 transition-colors ${
                   isDarkMode ? "border-[#0E0E12]" : "border-white"
                 } ${
                   peerOnline ? "bg-emerald-500 shadow-[0_0_8px_#10b981]" : "bg-slate-500"
@@ -414,16 +415,16 @@ export default function ChatRoom({
               />
             </div>
             <div id="peer-status-info" className="text-left">
-              <h4 className={`text-sm font-black tracking-tight ${isDarkMode ? "text-white" : "text-slate-800"}`}>
+              <h4 className={`text-xs md:text-sm font-black tracking-tight ${isDarkMode ? "text-white" : "text-slate-800"}`}>
                 {peer.name}
               </h4>
-              <p className={`text-[10px] font-bold uppercase tracking-wider ${peerOnline ? "text-cyan-400" : "text-slate-400"}`}>
-                {peerOnline ? "Direct Channel Active" : "Offline"}
+              <p className={`text-[9px] md:text-[10px] font-bold uppercase tracking-wider ${peerOnline ? "text-cyan-400" : "text-slate-400"}`}>
+                {peerOnline ? "Direct Active" : "Offline"}
               </p>
             </div>
           </div>
 
-          <div id="header-right" className="flex items-center gap-2">
+          <div id="header-right" className="flex items-center gap-1.5 md:gap-2">
             <button
               id="btn-toggle-sidebar"
               onClick={() => setSidebarOpen((prev) => !prev)}
@@ -437,16 +438,16 @@ export default function ChatRoom({
             <button
               id="btn-leave-room"
               onClick={onLeaveRoom}
-              className="flex items-center gap-1.5 py-1.5 px-3.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-400 border border-rose-500/20 font-bold uppercase tracking-wider text-[10px] transition-all cursor-pointer"
+              className="flex items-center gap-1 py-1.5 px-2.5 md:px-3.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-400 border border-rose-500/20 font-bold uppercase tracking-wider text-[9px] md:text-[10px] transition-all cursor-pointer"
             >
               <LogOut className="w-3.5 h-3.5" />
-              <span>Disconnect</span>
+              <span className="hidden sm:inline">Disconnect</span>
             </button>
           </div>
         </header>
 
         {/* Message Feed Canvas */}
-        <div id="chat-history-scroll" className="flex-1 overflow-y-auto p-6 space-y-4">
+        <div id="chat-history-scroll" className="flex-1 overflow-y-auto p-3.5 md:p-6 space-y-3.5 md:space-y-4">
           {messages.length === 0 ? (
             <div id="empty-state" className="flex flex-col items-center justify-center h-full text-center max-w-sm mx-auto opacity-80">
               <div id="empty-decor-badge" className="w-12 h-12 rounded-2xl bg-cyan-500/10 flex items-center justify-center text-cyan-400 border border-cyan-500/20 mb-4 animate-pulse">
@@ -607,7 +608,7 @@ export default function ChatRoom({
 
         {/* Upload error strip */}
         {uploadError && (
-          <div id="upload-error-strip" className="mx-6 p-2 rounded-xl bg-rose-500/10 text-rose-400 border border-rose-500/20 text-xs flex items-center justify-between">
+          <div id="upload-error-strip" className="mx-4 md:mx-6 p-2 rounded-xl bg-rose-500/10 text-rose-400 border border-rose-500/20 text-xs flex items-center justify-between">
             <span>{uploadError}</span>
             <button id="btn-close-error" onClick={() => setUploadError(null)} className="p-1 hover:text-white cursor-pointer">
               <X className="w-3 h-3" />
@@ -617,7 +618,7 @@ export default function ChatRoom({
 
         {/* Attachment Queue Previews (before sending) */}
         {attachments.length > 0 && (
-          <div id="attachment-previews-container" className={`mx-6 p-3 rounded-2xl border flex flex-wrap gap-2.5 items-center justify-start ${
+          <div id="attachment-previews-container" className={`mx-4 md:mx-6 p-3 rounded-2xl border flex flex-wrap gap-2.5 items-center justify-start ${
             isDarkMode ? "bg-[#0E0E12] border-white/5" : "bg-slate-50 border-slate-200"
           }`}>
             {attachments.map((att, idx) => (
@@ -659,7 +660,7 @@ export default function ChatRoom({
         {/* Chat Input Footer */}
         <footer
           id="chat-footer"
-          className={`px-6 py-4 border-t relative ${
+          className={`px-3 md:px-6 py-3.5 md:py-4 border-t relative ${
             isDarkMode ? "border-white/5 bg-[#0E0E12]/80" : "border-slate-200/60 bg-white/40"
           }`}
         >
@@ -756,8 +757,8 @@ export default function ChatRoom({
       {sidebarOpen && (
         <aside
           id="chat-sidebar"
-          className={`w-72 border-l p-6 flex flex-col justify-between transition-all duration-300 h-full overflow-y-auto ${
-            isDarkMode ? "border-white/5 bg-[#0E0E12]" : "border-slate-200 bg-white/40"
+          className={`w-72 border-l p-5 flex flex-col justify-between transition-all duration-300 h-full overflow-y-auto absolute right-0 top-0 bottom-0 z-30 md:relative shadow-2xl md:shadow-none ${
+            isDarkMode ? "border-white/5 bg-[#0E0E12]/95 backdrop-blur-md" : "border-slate-200 bg-white/95 backdrop-blur-md"
           }`}
         >
           <div id="sidebar-top" className="space-y-6">
