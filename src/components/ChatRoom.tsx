@@ -174,6 +174,8 @@ interface ChatRoomProps {
   onRespondJoinRequest?: (req: JoinRequest, accept: boolean) => void;
   isDarkMode: boolean;
   autoShowInvite?: boolean;
+  keepAlive5h?: boolean;
+  onToggleKeepAlive?: () => void;
 }
 
 export default function ChatRoom({
@@ -196,6 +198,8 @@ export default function ChatRoom({
   onRespondJoinRequest,
   isDarkMode,
   autoShowInvite,
+  keepAlive5h = false,
+  onToggleKeepAlive,
 }: ChatRoomProps) {
   const [inputText, setInputText] = useState("");
   const [attachments, setAttachments] = useState<PendingFile[]>([]);
@@ -468,7 +472,7 @@ export default function ChatRoom({
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      className={`flex h-[85vh] md:h-[82vh] relative w-full overflow-hidden rounded-none md:rounded-3xl border-0 md:border transition-all duration-300 shadow-2xl backdrop-blur-md ${isDarkMode
+      className={`flex h-[100dvh] md:h-[82vh] relative w-full overflow-hidden rounded-none md:rounded-3xl border-0 md:border transition-all duration-300 shadow-2xl backdrop-blur-md ${isDarkMode
         ? "bg-[#0E0E12]/80 border-white/5 shadow-cyan-500/5"
         : "bg-white/80 border-slate-200/80 shadow-slate-200/40"
         }`}
@@ -811,10 +815,10 @@ export default function ChatRoom({
           </div>
         )}
 
-        {/* Chat Input Footer */}
+        {/* Chat Input Footer - always visible, never hidden */}
         <footer
           id="chat-footer"
-          className={`px-3 md:px-6 py-3.5 md:py-4 border-t relative ${isDarkMode ? "border-white/5 bg-[#0E0E12]/80" : "border-slate-200/60 bg-white/40"
+          className={`px-3 md:px-6 py-3 md:py-4 border-t relative shrink-0 ${isDarkMode ? "border-white/5 bg-[#0E0E12]/80" : "border-slate-200/60 bg-white/40"
             }`}
         >
           {/* Emoji custom board overlay with backdrop click-outside */}
@@ -1030,8 +1034,38 @@ export default function ChatRoom({
             </div>
           </div>
 
-          {/* Secure Ephemeral Warning details */}
+          {/* Secure Ephemeral Warning details + Keep-Alive Toggle */}
           <div id="sidebar-bottom" className="space-y-4 pt-4 border-t border-white/5 text-left">
+
+          {/* 5-Hour Keep-Alive Toggle inside chat sidebar — always shown */}
+            <div
+              id="sidebar-keep-alive-toggle"
+              onClick={onToggleKeepAlive}
+              className={`flex items-center justify-between p-3.5 rounded-2xl border cursor-pointer select-none transition-all duration-300 ${
+                keepAlive5h
+                  ? "bg-cyan-500/10 border-cyan-500/30 shadow-[0_0_14px_rgba(6,182,212,0.08)]"
+                  : isDarkMode ? "bg-white/5 border-white/5 hover:border-white/10" : "bg-slate-50 border-slate-200 hover:border-slate-300"
+              }`}
+            >
+              <div className="text-left pr-3">
+                <p className={`text-[11px] font-black tracking-tight ${keepAlive5h ? "text-cyan-400" : isDarkMode ? "text-slate-300" : "text-slate-700"}`}>
+                  Data stored in 5hr
+                </p>
+                <p className={`text-[9px] font-semibold mt-0.5 ${isDarkMode ? "text-slate-500" : "text-slate-400"}`}>
+                  No cleanup on refresh
+                </p>
+              </div>
+              <div
+                className={`w-9 h-5 rounded-full p-0.5 transition-all duration-300 flex items-center shrink-0 ${
+                  keepAlive5h ? "bg-cyan-500" : "bg-slate-700"
+                }`}
+              >
+                <div className={`w-4 h-4 rounded-full bg-white shadow-md transition-all duration-300 ${
+                  keepAlive5h ? "transform translate-x-4" : ""
+                }`} />
+              </div>
+            </div>
+
             <div id="info-tip-box" className="flex gap-2 text-[11px] text-slate-400 leading-relaxed">
               <Info className="w-4 h-4 text-cyan-400 shrink-0" />
               <p>

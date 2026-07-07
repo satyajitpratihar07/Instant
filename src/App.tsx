@@ -490,11 +490,10 @@ export default function App() {
 
     const newRoomId = generateUUID();
     try {
-      await set(ref(db, `rooms/${newRoomId}`), {
+      const roomData: Record<string, any> = {
         id: newRoomId,
         creatorId: session.id,
         createdTime: Date.now(),
-        expiresAt: keepAlive5h ? Date.now() + 5 * 60 * 60 * 1000 : undefined,
         members: {
           [session.id]: {
             id: session.id,
@@ -504,7 +503,11 @@ export default function App() {
             lastActive: Date.now()
           }
         }
-      } as any);
+      };
+      if (keepAlive5h) {
+        roomData.expiresAt = Date.now() + 5 * 60 * 60 * 1000;
+      }
+      await set(ref(db, `rooms/${newRoomId}`), roomData);
 
       await update(ref(db, `sessions/${session.id}`), {
         connectedRoomId: newRoomId
@@ -954,30 +957,6 @@ export default function App() {
                   </div>
                 </button>
               </div>
-
-              {/* 5-Hour Keep-Alive Toggle Switch */}
-              <div id="toggle-keep-alive-container" className={`flex items-center justify-between max-w-[320px] mx-auto p-4.5 rounded-[22px] border transition-all duration-300 select-none ${
-                keepAlive5h 
-                  ? "bg-cyan-500/10 border-cyan-500/30 shadow-[0_0_20px_rgba(6,182,212,0.06)]" 
-                  : "bg-white/5 border-white/5"
-              }`}>
-                <div className="text-left pr-4">
-                  <p className={`text-xs font-black tracking-tight ${keepAlive5h ? "text-cyan-400" : "text-slate-300"}`}>Data stored in 5hr</p>
-                  <p className="text-[10px] text-slate-500 font-semibold mt-0.5 leading-tight">No cleanup or logout on refresh</p>
-                </div>
-                <button
-                  id="btn-toggle-keep-alive"
-                  type="button"
-                  onClick={() => setKeepAlive5h(!keepAlive5h)}
-                  className={`w-9 h-5 rounded-full p-0.5 transition-all duration-300 cursor-pointer flex items-center shrink-0 ${
-                    keepAlive5h ? "bg-cyan-500" : "bg-slate-700"
-                  }`}
-                >
-                  <div className={`w-4 h-4 rounded-full bg-white shadow-md transition-all duration-300 ${
-                    keepAlive5h ? "transform translate-x-4" : ""
-                  }`} />
-                </button>
-              </div>
             </div>
           )}
 
@@ -992,7 +971,7 @@ export default function App() {
           )}
 
           {view === "chat" && session && (
-            <div id="chat-view" className="animate-scale-up w-full h-full max-w-5xl mx-auto">
+            <div id="chat-view" className="animate-scale-up w-full h-full max-w-5xl mx-auto -mx-4 md:mx-auto">
               <ChatRoom
                 roomId={session.connectedRoomId || ""}
                 sessionId={session.id}
@@ -1013,6 +992,8 @@ export default function App() {
                 onRespondJoinRequest={respondGroupConnection}
                 isDarkMode={isDarkMode}
                 autoShowInvite={autoShowInvite}
+                keepAlive5h={keepAlive5h}
+                onToggleKeepAlive={() => setKeepAlive5h((prev) => !prev)}
               />
             </div>
           )}
