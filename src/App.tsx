@@ -455,28 +455,39 @@ export default function App() {
     }
 
     if (targetId === activeSess.id) {
-      addToast("You cannot pair with your own session QR code.", "error");
+      addToast("You cannot join your own room.", "error");
       return;
     }
 
     setIsConnecting(true);
-    setWaitingForResponse("Peer");
-
     try {
-      await set(ref(db, `sessions/${targetId}/incomingRequests/${activeSess.id}`), {
-        id: activeSess.id,
-        name: activeSess.name,
-        avatarSeed: activeSess.avatarSeed
-      });
-      await update(ref(db, `sessions/${activeSess.id}`), {
-        pairingStatus: { type: "pending", targetId }
-      });
-      addToast("Pairing request delivered successfully!", "success");
-    } catch (e) {
-      console.error("Pairing request failed:", e);
+      // Fetch the host's session to retrieve their connectedRoomId
+      const hostSnap = await get(ref(db, `sessions/${targetId}`));
+      if (hostSnap.exists()) {
+        const hostData = hostSnap.val();
+        const roomId = hostData.connectedRoomId;
+        if (roomId) {
+          // Write a group join request to the room
+          await set(ref(db, `rooms/${roomId}/joinRequests/${activeSess.id}`), {
+            id: activeSess.id,
+            name: activeSess.name,
+            avatarSeed: activeSess.avatarSeed,
+            timestamp: Date.now()
+          });
+
+          setWaitingForGroupApprove(roomId);
+          addToast("Join request sent. Awaiting approval...", "info");
+        } else {
+          addToast("This user is not currently in an active chat room.", "error");
+        }
+      } else {
+        addToast("Host session expired or not found.", "error");
+      }
+    } catch (err) {
+      console.error("QR connection request failed:", err);
+      addToast("Failed to send join request.", "error");
+    } finally {
       setIsConnecting(false);
-      setWaitingForResponse(null);
-      addToast("Failed to send pairing request.", "error");
     }
   };
 
