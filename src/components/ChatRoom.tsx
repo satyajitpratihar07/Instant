@@ -25,9 +25,11 @@ import {
   ScanLine,
   Loader2
 } from "lucide-react";
-import { Message, Peer, PendingFile } from "../types";
+import { Message, Peer, PendingFile, JoinRequest } from "../types";
 import { formatBytes, getAvatarGradient, getInitials, MAX_FILE_SIZE_BYTES, playNotificationSound } from "../utils";
 import Lightbox from "./Lightbox";
+import QrGenerator from "./QrGenerator";
+import QrScanner from "./QrScanner";
 import { db } from "../firebase";
 import { ref as dbRef, set, get, remove } from "firebase/database";
 import { AlertCircle } from "lucide-react";
@@ -123,11 +125,10 @@ function FileAttachmentView({ file, isMe, onSetLightbox }: FileAttachmentViewPro
   return (
     <div
       id="document-preview-card"
-      className={`flex items-center gap-3 p-3 rounded-xl border ${
-        isMe
+      className={`flex items-center gap-3 p-3 rounded-xl border ${isMe
           ? "bg-[#0E0E12]/40 border-white/5"
           : "bg-[#0E0E12]/20 border-white/5"
-      }`}
+        }`}
     >
       <div className="p-2.5 rounded-lg bg-white/5">
         {getFileIcon(file.type)}
@@ -158,16 +159,21 @@ interface ChatRoomProps {
   sessionId: string;
   sessionName: string;
   avatarSeed: string;
-  peer: Peer;
+  peer?: Peer | null;
+  peers: Peer[];
   messages: Message[];
   peerOnline: boolean;
   peerTyping: boolean;
+  typingNames?: string[];
+  joinRequests?: JoinRequest[];
   onSendMessage: (text: string, fileId?: string, fileMeta?: any) => void;
   onDeleteMessage: (messageId: string) => void;
   onSetTyping?: (isTyping: boolean) => void;
   onLeaveRoom: () => void;
   onScanSuccess?: (targetId: string) => void;
+  onRespondJoinRequest?: (req: JoinRequest, accept: boolean) => void;
   isDarkMode: boolean;
+  autoShowInvite?: boolean;
 }
 
 export default function ChatRoom({
@@ -176,28 +182,35 @@ export default function ChatRoom({
   sessionName,
   avatarSeed,
   peer,
+  peers,
   messages,
   peerOnline,
   peerTyping,
+  typingNames = [],
+  joinRequests = [],
   onSendMessage,
   onDeleteMessage,
   onSetTyping,
   onLeaveRoom,
   onScanSuccess,
+  onRespondJoinRequest,
   isDarkMode,
+  autoShowInvite,
 }: ChatRoomProps) {
   const [inputText, setInputText] = useState("");
   const [attachments, setAttachments] = useState<PendingFile[]>([]);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showPlusMenu, setShowPlusMenu] = useState(false);
-  const [showAddMember, setShowAddMember] = useState(false);
+  const [showAddMember, setShowAddMember] = useState(autoShowInvite || false);
   const [showJoinChat, setShowJoinChat] = useState(false);
-  
+
   const [inviteCode, setInviteCode] = useState<string | null>(null);
   const [copiedCode, setCopiedCode] = useState(false);
   const [joinCodeInput, setJoinCodeInput] = useState("");
   const [joinError, setJoinError] = useState<string | null>(null);
   const [joining, setJoining] = useState(false);
+
+  const activePeer = peers[0] || peer || { id: "awaiting", name: "Awaiting...", avatarSeed: "default", online: false };
 
   // Manage invite code lifecycle inside the ChatRoom component
   useEffect(() => {
@@ -213,6 +226,7 @@ export default function ChatRoom({
       try {
         await set(dbRef(db, `codes/${code}`), {
           sessionId,
+          roomId,
           createdAt: Date.now(),
         });
       } catch (err) {
@@ -451,11 +465,10 @@ export default function ChatRoom({
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      className={`flex h-[85vh] md:h-[82vh] relative w-full overflow-hidden rounded-none md:rounded-3xl border-0 md:border transition-all duration-300 shadow-2xl backdrop-blur-md ${
-        isDarkMode
+      className={`flex h-[85vh] md:h-[82vh] relative w-full overflow-hidden rounded-none md:rounded-3xl border-0 md:border transition-all duration-300 shadow-2xl backdrop-blur-md ${isDarkMode
           ? "bg-[#0E0E12]/80 border-white/5 shadow-cyan-500/5"
           : "bg-white/80 border-slate-200/80 shadow-slate-200/40"
-      }`}
+        }`}
     >
       {/* Drag & Drop File Sharing Overlay */}
       {isDragging && (
@@ -466,40 +479,78 @@ export default function ChatRoom({
         </div>
       )}
 
+      {/* Floating Group Join Requests Panel */}
+      {joinRequests.length > 0 && (
+        <div id="floating-group-join-requests" className="absolute top-16 left-1/2 -translate-x-1/2 z-30 w-full max-w-sm px-4">
+          <div className={`p-4 rounded-2xl border shadow-2xl flex flex-col gap-3 animate-scale-up backdrop-blur-md ${isDarkMode ? "bg-slate-900/95 border-cyan-500/35 text-white" : "bg-white/95 border-slate-200 text-slate-800"}`}>
+            {joinRequests.map((req) => (
+              <div key={req.id} className="flex items-center justify-between gap-3 py-1 border-b last:border-b-0 border-white/5">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className={`w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center text-white font-bold bg-gradient-to-br shadow-sm ${getAvatarGradient(req.avatarSeed)} text-xs`}>
+                    {getInitials(req.name)}
+                  </div>
+                  <div className="text-left min-w-0">
+                    <p className="text-xs font-bold truncate">{req.name}</p>
+                    <p className={`text-[9px] font-bold ${isDarkMode ? "text-cyan-400" : "text-indigo-600"} uppercase tracking-wider`}>Join Request</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => onRespondJoinRequest && onRespondJoinRequest(req, true)}
+                    className="px-2.5 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-white text-[10px] uppercase tracking-wider font-bold rounded-lg transition-all cursor-pointer"
+                  >
+                    Accept
+                  </button>
+                  <button
+                    onClick={() => onRespondJoinRequest && onRespondJoinRequest(req, false)}
+                    className={`px-2.5 py-1.5 text-[10px] uppercase tracking-wider font-bold rounded-lg transition-all cursor-pointer ${
+                      isDarkMode ? "bg-white/5 border border-white/10 hover:bg-white/10 text-white" : "bg-slate-100 hover:bg-slate-200 text-slate-700"
+                    }`}
+                  >
+                    Decline
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Main Messaging Interface Area */}
       <div id="chat-messages-area" className="flex-1 flex flex-col h-full overflow-hidden">
         {/* Chat Header */}
         <header
           id="chat-header"
-          className={`flex items-center justify-between px-4 md:px-6 py-3 md:py-4 border-b ${
-            isDarkMode ? "border-white/5 bg-[#0E0E12]/90" : "border-slate-200/60 bg-white/60"
-          }`}
+          className={`flex items-center justify-between px-4 md:px-6 py-3 md:py-4 border-b ${isDarkMode ? "border-white/5 bg-[#0E0E12]/90" : "border-slate-200/60 bg-white/60"
+            }`}
         >
           <div id="header-left" className="flex items-center gap-3 text-left">
             <div id="peer-avatar-wrapper" className="relative">
               <div
                 id="peer-avatar"
                 className={`w-9 h-9 md:w-10 md:h-10 rounded-xl flex items-center justify-center text-white font-bold bg-gradient-to-br shadow-md ${getAvatarGradient(
-                  peer.avatarSeed
+                  activePeer.avatarSeed
                 )}`}
               >
-                {getInitials(peer.name)}
+                {peers.length > 1 ? `${peers.length + 1}` : getInitials(activePeer.name)}
               </div>
               <span
                 id="peer-online-indicator"
-                className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 md:w-3.5 md:h-3.5 rounded-full border-2 transition-colors ${
-                  isDarkMode ? "border-[#0E0E12]" : "border-white"
-                } ${
-                  peerOnline ? "bg-emerald-500 shadow-[0_0_8px_#10b981]" : "bg-slate-500"
-                }`}
+                className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 md:w-3.5 md:h-3.5 rounded-full border-2 transition-colors ${isDarkMode ? "border-[#0E0E12]" : "border-white"
+                  } ${(peers.length > 1 ? peers.some(p => p.online) : peerOnline) ? "bg-emerald-500 shadow-[0_0_8px_#10b981]" : "bg-slate-500"
+                  }`}
               />
             </div>
             <div id="peer-status-info" className="text-left">
               <h4 className={`text-xs md:text-sm font-black tracking-tight ${isDarkMode ? "text-white" : "text-slate-800"}`}>
-                {peer.name}
+                {peers.length > 1 ? "Group Chat Room" : activePeer.name}
               </h4>
-              <p className={`text-[9px] md:text-[10px] font-bold uppercase tracking-wider ${peerOnline ? "text-cyan-400" : "text-slate-400"}`}>
-                {peerOnline ? "Direct Active" : "Offline"}
+              <p className={`text-[9px] md:text-[10px] font-bold uppercase tracking-wider ${(peers.length > 1 ? peers.some(p => p.online) : peerOnline) ? "text-cyan-400" : "text-slate-400"
+                }`}>
+                {peers.length > 1
+                  ? `${peers.filter(p => p.online).length + 1} of ${peers.length + 1} Active`
+                  : peerOnline ? "Direct Active" : "Offline"
+                }
               </p>
             </div>
           </div>
@@ -514,7 +565,7 @@ export default function ChatRoom({
               <UserPlus className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Add Member</span>
             </button>
-            
+
             <button
               id="btn-join-chat-inline"
               onClick={() => setShowJoinChat(true)}
@@ -528,9 +579,8 @@ export default function ChatRoom({
             <button
               id="btn-toggle-sidebar"
               onClick={() => setSidebarOpen((prev) => !prev)}
-              className={`p-2 rounded-xl transition-all hover:bg-white/5 cursor-pointer ${
-                isDarkMode ? "text-slate-300" : "text-slate-600 hover:bg-slate-100"
-              }`}
+              className={`p-2 rounded-xl transition-all hover:bg-white/5 cursor-pointer ${isDarkMode ? "text-slate-300" : "text-slate-600 hover:bg-slate-100"
+                }`}
               title="Show info panel"
             >
               <Menu className="w-5 h-5" />
@@ -605,15 +655,14 @@ export default function ChatRoom({
                     {/* Standard Text or File Bubble */}
                     <div
                       id="bubble"
-                      className={`rounded-2xl p-3.5 text-sm shadow-sm transition-all duration-150 text-left ${
-                        isMe
+                      className={`rounded-2xl p-3.5 text-sm shadow-sm transition-all duration-150 text-left ${isMe
                           ? isDarkMode
                             ? "bg-gradient-to-tr from-cyan-500 to-indigo-600 text-white rounded-br-none shadow-cyan-500/5"
                             : "bg-indigo-600 text-white rounded-br-none shadow-indigo-200"
                           : isDarkMode
-                          ? "bg-white/5 text-slate-100 rounded-bl-none border border-white/5"
-                          : "bg-slate-100 text-slate-800 rounded-bl-none border border-slate-200/50"
-                      }`}
+                            ? "bg-white/5 text-slate-100 rounded-bl-none border border-white/5"
+                            : "bg-slate-100 text-slate-800 rounded-bl-none border border-slate-200/50"
+                        }`}
                     >
                       {/* File Rendering */}
                       {msg.file && (
@@ -686,15 +735,17 @@ export default function ChatRoom({
           {peerTyping && (
             <div id="peer-typing-indicator" className="flex flex-col items-start max-w-[80%] mr-auto">
               <span id="typing-label" className="text-[10px] text-slate-400 font-bold mb-1 ml-2 uppercase tracking-wider">
-                {peer.name} is typing
+                {typingNames.length > 1
+                  ? `${typingNames.join(", ")} are typing`
+                  : `${typingNames[0] || activePeer.name} is typing`
+                }
               </span>
               <div
                 id="typing-bubble"
-                className={`rounded-2xl px-4 py-3 border rounded-bl-none flex items-center gap-1.5 ${
-                  isDarkMode
+                className={`rounded-2xl px-4 py-3 border rounded-bl-none flex items-center gap-1.5 ${isDarkMode
                     ? "bg-white/5 border-white/5 text-slate-100"
                     : "bg-slate-100 border-slate-200/50 text-slate-800"
-                }`}
+                  }`}
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-bounce [animation-delay:-0.3s]"></span>
                 <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-bounce [animation-delay:-0.15s]"></span>
@@ -718,9 +769,8 @@ export default function ChatRoom({
 
         {/* Attachment Queue Previews (before sending) */}
         {attachments.length > 0 && (
-          <div id="attachment-previews-container" className={`mx-4 md:mx-6 p-3 rounded-2xl border flex flex-wrap gap-2.5 items-center justify-start ${
-            isDarkMode ? "bg-[#0E0E12] border-white/5" : "bg-slate-50 border-slate-200"
-          }`}>
+          <div id="attachment-previews-container" className={`mx-4 md:mx-6 p-3 rounded-2xl border flex flex-wrap gap-2.5 items-center justify-start ${isDarkMode ? "bg-[#0E0E12] border-white/5" : "bg-slate-50 border-slate-200"
+            }`}>
             {attachments.map((att, idx) => (
               <div id={`att-preview-${idx}`} key={idx} className="relative group/att w-16 h-16 rounded-xl border border-white/10 bg-slate-950 flex items-center justify-center p-1 overflow-hidden">
                 {att.isImage ? (
@@ -745,11 +795,10 @@ export default function ChatRoom({
               id="btn-add-more-att"
               type="button"
               onClick={triggerFileSelect}
-              className={`w-16 h-16 rounded-xl border border-dashed flex flex-col items-center justify-center gap-1 cursor-pointer transition-all ${
-                isDarkMode
+              className={`w-16 h-16 rounded-xl border border-dashed flex flex-col items-center justify-center gap-1 cursor-pointer transition-all ${isDarkMode
                   ? "border-white/10 hover:border-cyan-500 text-slate-400 hover:text-cyan-400 bg-white/5"
                   : "border-slate-300 hover:border-indigo-600 text-slate-50 hover:text-indigo-600"
-              }`}
+                }`}
             >
               <Paperclip className="w-4 h-4" />
               <span className="text-[8px] font-bold uppercase tracking-wider">Add</span>
@@ -760,9 +809,8 @@ export default function ChatRoom({
         {/* Chat Input Footer */}
         <footer
           id="chat-footer"
-          className={`px-3 md:px-6 py-3.5 md:py-4 border-t relative ${
-            isDarkMode ? "border-white/5 bg-[#0E0E12]/80" : "border-slate-200/60 bg-white/40"
-          }`}
+          className={`px-3 md:px-6 py-3.5 md:py-4 border-t relative ${isDarkMode ? "border-white/5 bg-[#0E0E12]/80" : "border-slate-200/60 bg-white/40"
+            }`}
         >
           {/* Emoji custom board overlay with backdrop click-outside */}
           {showEmojiPicker && (
@@ -770,9 +818,8 @@ export default function ChatRoom({
               <div className="fixed inset-0 z-20" onClick={() => setShowEmojiPicker(false)} />
               <div
                 id="emoji-picker-popup"
-                className={`absolute bottom-full left-3 mb-3 p-3.5 rounded-2xl shadow-xl border grid grid-cols-8 gap-2 z-30 transition-all ${
-                  isDarkMode ? "bg-[#16161A] border-white/10 shadow-[0_10px_30px_rgba(0,0,0,0.5)]" : "bg-white border-slate-200 shadow-slate-200/50"
-                }`}
+                className={`absolute bottom-full left-3 mb-3 p-3.5 rounded-2xl shadow-xl border grid grid-cols-8 gap-2 z-30 transition-all ${isDarkMode ? "bg-[#16161A] border-white/10 shadow-[0_10px_30px_rgba(0,0,0,0.5)]" : "bg-white border-slate-200 shadow-slate-200/50"
+                  }`}
               >
                 {defaultEmojis.map((emoji) => (
                   <button
@@ -802,20 +849,19 @@ export default function ChatRoom({
               multiple
               className="hidden"
             />
-            
+
             {/* Plus Menu Toggle Button */}
             <div className="relative">
               <button
                 id="btn-plus-menu"
                 type="button"
                 onClick={() => setShowPlusMenu((prev) => !prev)}
-                className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-center ${
-                  showPlusMenu
+                className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-center ${showPlusMenu
                     ? "border-cyan-500 text-cyan-400 bg-cyan-500/10"
                     : isDarkMode
-                    ? "border-white/10 hover:border-cyan-500/30 hover:text-cyan-400 bg-white/5 text-slate-300"
-                    : "border-slate-200 hover:border-indigo-600 hover:text-indigo-600 bg-slate-50 text-slate-600"
-                }`}
+                      ? "border-white/10 hover:border-cyan-500/30 hover:text-cyan-400 bg-white/5 text-slate-300"
+                      : "border-slate-200 hover:border-indigo-600 hover:text-indigo-600 bg-slate-50 text-slate-600"
+                  }`}
                 title="More options"
               >
                 <Plus className={`w-4 h-4 md:w-5 md:h-5 transition-transform duration-200 ${showPlusMenu ? "rotate-45" : ""}`} />
@@ -827,11 +873,10 @@ export default function ChatRoom({
                   <div className="fixed inset-0 z-20" onClick={() => setShowPlusMenu(false)} />
                   <div
                     id="plus-menu-dropdown"
-                    className={`absolute bottom-full left-0 mb-3 p-1.5 rounded-2xl shadow-xl border w-40 z-30 transition-all ${
-                      isDarkMode
+                    className={`absolute bottom-full left-0 mb-3 p-1.5 rounded-2xl shadow-xl border w-40 z-30 transition-all ${isDarkMode
                         ? "bg-[#16161A] border-white/10 shadow-[0_10px_30px_rgba(0,0,0,0.5)]"
                         : "bg-white border-slate-200 shadow-slate-200/50"
-                    }`}
+                      }`}
                   >
                     <button
                       id="btn-attach"
@@ -840,16 +885,15 @@ export default function ChatRoom({
                         setShowPlusMenu(false);
                         triggerFileSelect();
                       }}
-                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-all text-left ${
-                        isDarkMode
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-all text-left ${isDarkMode
                           ? "hover:bg-white/5 text-slate-200 hover:text-cyan-400"
                           : "hover:bg-slate-100 text-slate-700 hover:text-indigo-600"
-                      }`}
+                        }`}
                     >
                       <Paperclip className="w-4 h-4 text-cyan-400" />
                       <span>Attach File</span>
                     </button>
-                    
+
                     <button
                       id="btn-emoji-toggle"
                       type="button"
@@ -857,11 +901,10 @@ export default function ChatRoom({
                         setShowPlusMenu(false);
                         setShowEmojiPicker(true);
                       }}
-                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-all text-left ${
-                        isDarkMode
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-all text-left ${isDarkMode
                           ? "hover:bg-white/5 text-slate-200 hover:text-cyan-400"
                           : "hover:bg-slate-100 text-slate-700 hover:text-indigo-600"
-                      }`}
+                        }`}
                     >
                       <Smile className="w-4 h-4 text-amber-400" />
                       <span>Insert Emoji</span>
@@ -879,11 +922,10 @@ export default function ChatRoom({
               value={inputText}
               onChange={handleInputChange}
               disabled={isUploading}
-              className={`flex-1 min-w-0 py-2.5 md:py-3 px-3 md:px-4 rounded-xl outline-none border transition-all text-xs md:text-sm ${
-                isDarkMode
+              className={`flex-1 min-w-0 py-2.5 md:py-3 px-3 md:px-4 rounded-xl outline-none border transition-all text-xs md:text-sm ${isDarkMode
                   ? "bg-slate-950/80 border-white/5 text-slate-100 placeholder-slate-600 focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/30"
                   : "bg-slate-50 border-slate-200 text-slate-800 placeholder-slate-400 focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
-              }`}
+                }`}
             />
 
             {/* Submit Button */}
@@ -903,9 +945,8 @@ export default function ChatRoom({
       {sidebarOpen && (
         <aside
           id="chat-sidebar"
-          className={`w-72 border-l p-5 flex flex-col justify-between transition-all duration-300 h-full overflow-y-auto absolute right-0 top-0 bottom-0 z-30 md:relative shadow-2xl md:shadow-none ${
-            isDarkMode ? "border-white/5 bg-[#0E0E12]/95 backdrop-blur-md" : "border-slate-200 bg-white/95 backdrop-blur-md"
-          }`}
+          className={`w-72 border-l p-5 flex flex-col justify-between transition-all duration-300 h-full overflow-y-auto absolute right-0 top-0 bottom-0 z-30 md:relative shadow-2xl md:shadow-none ${isDarkMode ? "border-white/5 bg-[#0E0E12]/95 backdrop-blur-md" : "border-slate-200 bg-white/95 backdrop-blur-md"
+            }`}
         >
           <div id="sidebar-top" className="space-y-6">
             {/* Header / Dismiss */}
@@ -923,9 +964,8 @@ export default function ChatRoom({
             </div>
 
             {/* Connection Status bar */}
-            <div id="conn-health-box" className={`p-4 rounded-2xl border flex flex-col text-left ${
-              isDarkMode ? "bg-white/5 border-white/5" : "bg-slate-50 border-slate-200"
-            }`}>
+            <div id="conn-health-box" className={`p-4 rounded-2xl border flex flex-col text-left ${isDarkMode ? "bg-white/5 border-white/5" : "bg-slate-50 border-slate-200"
+              }`}>
               <div id="conn-state" className="flex items-center gap-2 mb-2">
                 <Wifi className="w-4 h-4 text-cyan-400" />
                 <span className={`text-xs font-black uppercase tracking-wider ${isDarkMode ? "text-white" : "text-slate-700"}`}>
@@ -940,9 +980,9 @@ export default function ChatRoom({
             {/* Participant Profiles list */}
             <div id="participants-panel" className="space-y-3">
               <h5 className={`text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>
-                Pair Members
+                Members ({peers.length + 1})
               </h5>
-              
+
               {/* My row */}
               <div id="profile-row-me" className="flex items-center gap-3">
                 <div
@@ -957,29 +997,31 @@ export default function ChatRoom({
                   <h6 className={`text-xs font-bold truncate ${isDarkMode ? "text-slate-200" : "text-slate-700"}`}>
                     {sessionName} (You)
                   </h6>
-                  <p className="text-[9px] font-semibold text-cyan-400 uppercase tracking-wider">Owner</p>
+                  <p className="text-[9px] font-semibold text-cyan-400 uppercase tracking-wider">Active</p>
                 </div>
               </div>
 
-              {/* Peer row */}
-              <div id="profile-row-peer" className="flex items-center gap-3">
-                <div
-                  id="peer-mini-avatar"
-                  className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs text-white font-bold bg-gradient-to-br shadow-sm ${getAvatarGradient(
-                    peer.avatarSeed
-                  )}`}
-                >
-                  {getInitials(peer.name)}
+              {/* Peers rows */}
+              {peers.map((p) => (
+                <div id={`profile-row-${p.id}`} key={p.id} className="flex items-center gap-3 animate-fade-in">
+                  <div
+                    id={`avatar-${p.id}`}
+                    className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs text-white font-bold bg-gradient-to-br shadow-sm ${getAvatarGradient(
+                      p.avatarSeed
+                    )}`}
+                  >
+                    {getInitials(p.name)}
+                  </div>
+                  <div id={`labels-${p.id}`} className="text-left min-w-0 flex-1">
+                    <h6 className={`text-xs font-bold truncate ${isDarkMode ? "text-slate-200" : "text-slate-700"}`}>
+                      {p.name}
+                    </h6>
+                    <p className={`text-[9px] font-bold uppercase tracking-wider ${p.online ? "text-emerald-400" : "text-rose-400"}`}>
+                      {p.online ? "Online" : "Offline"}
+                    </p>
+                  </div>
                 </div>
-                <div id="peer-profile-labels" className="text-left min-w-0 flex-1">
-                  <h6 className={`text-xs font-bold truncate ${isDarkMode ? "text-slate-200" : "text-slate-700"}`}>
-                    {peer.name}
-                  </h6>
-                  <p id="peer-status-label" className={`text-[9px] font-bold uppercase tracking-wider ${peerOnline ? "text-emerald-400" : "text-rose-400"}`}>
-                    {peerOnline ? "Online" : "Offline"}
-                  </p>
-                </div>
-              </div>
+              ))}
             </div>
           </div>
 
@@ -1010,67 +1052,34 @@ export default function ChatRoom({
       {/* Add Member Modal (Simple 6-Digit Code) */}
       {showAddMember && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="relative w-full max-w-sm animate-scale-up">
-            <div
-              className={`relative w-full rounded-3xl p-6 transition-all duration-300 shadow-2xl border ${
-                isDarkMode
-                  ? "bg-sleek-card border-white/5 shadow-cyan-500/5 text-white"
-                  : "bg-white border-slate-200 shadow-slate-200/50 text-slate-800"
-              }`}
+          <div className="relative w-full max-w-[380px] animate-scale-up">
+            <button
+              onClick={() => {
+                if (peers.length === 0) {
+                  onLeaveRoom();
+                } else {
+                  setShowAddMember(false);
+                }
+              }}
+              className="absolute top-6 right-6 p-1.5 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white cursor-pointer z-50"
             >
-              <button
-                onClick={() => setShowAddMember(false)}
-                className="absolute top-4 right-4 p-1.5 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-
-              <div className="text-center mb-6">
-                <h3 className="text-lg font-black tracking-tight">Add Member</h3>
-                <p className={`text-xs ${isDarkMode ? "text-slate-400" : "text-slate-500"} mt-1`}>
-                  Share this temporary 6-digit code with the member you want to invite.
-                </p>
+              <X className="w-5 h-5" />
+            </button>
+            {inviteCode ? (
+              <QrGenerator
+                sessionId={inviteCode}
+                sessionName={sessionName}
+                avatarSeed={avatarSeed}
+                isDarkMode={isDarkMode}
+                simple={false}
+              />
+            ) : (
+              <div className={`flex items-center justify-center p-8 rounded-3xl min-h-[300px] border ${
+                isDarkMode ? "bg-[#16161A] border-white/5" : "bg-white border-slate-200"
+              }`}>
+                <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
               </div>
-
-              {inviteCode ? (
-                <div
-                  onClick={handleCopyCode}
-                  className={`p-6 rounded-2xl border text-center cursor-pointer transition-all hover:scale-[1.01] active:scale-[0.99] relative overflow-hidden select-none ${
-                    copiedCode
-                      ? "border-emerald-500 bg-emerald-500/10"
-                      : isDarkMode
-                      ? "bg-white/5 border-cyan-500/20 hover:border-cyan-500/40"
-                      : "bg-slate-50 border-slate-200 hover:border-slate-300"
-                  }`}
-                  title="Click to copy invite code"
-                >
-                  <p className={`text-[10px] uppercase font-bold tracking-wider ${copiedCode ? "text-emerald-400" : isDarkMode ? "text-cyan-400" : "text-indigo-600"} mb-1`}>
-                    {copiedCode ? "Copied Code!" : "Invite Code"}
-                  </p>
-                  <h4 className={`text-3xl font-black tracking-widest font-mono ${copiedCode ? "text-emerald-400" : isDarkMode ? "text-white" : "text-slate-800"}`}>
-                    {inviteCode.substring(0, 3)} {inviteCode.substring(3, 6)}
-                  </h4>
-                </div>
-              ) : (
-                <div className="flex items-center justify-center p-8">
-                  <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
-                </div>
-              )}
-
-              <button
-                onClick={handleCopyCode}
-                disabled={!inviteCode}
-                className={`mt-6 w-full py-3 px-4 rounded-xl font-bold transition-all duration-200 cursor-pointer text-xs uppercase tracking-wider ${
-                  copiedCode
-                    ? "bg-emerald-500 text-white"
-                    : isDarkMode
-                    ? "bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white shadow-lg shadow-cyan-500/15"
-                    : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/15"
-                }`}
-              >
-                {copiedCode ? "Copied!" : "Copy Code"}
-              </button>
-            </div>
+            )}
           </div>
         </div>
       )}
@@ -1080,11 +1089,10 @@ export default function ChatRoom({
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="relative w-full max-w-sm animate-scale-up">
             <div
-              className={`relative w-full rounded-3xl p-6 transition-all duration-300 shadow-2xl border ${
-                isDarkMode
+              className={`relative w-full rounded-3xl p-6 transition-all duration-300 shadow-2xl border ${isDarkMode
                   ? "bg-sleek-card border-white/5 shadow-cyan-500/5 text-white"
                   : "bg-white border-slate-200 shadow-slate-200/50 text-slate-800"
-              }`}
+                }`}
             >
               <button
                 onClick={() => setShowJoinChat(false)}
@@ -1118,21 +1126,19 @@ export default function ChatRoom({
                     setJoinCodeInput(val);
                   }}
                   disabled={joining}
-                  className={`w-full py-3 px-4 rounded-xl text-center text-xl font-bold font-mono tracking-widest outline-none border transition-all ${
-                    isDarkMode
+                  className={`w-full py-3 px-4 rounded-xl text-center text-xl font-bold font-mono tracking-widest outline-none border transition-all ${isDarkMode
                       ? "bg-slate-950/80 border-white/10 text-slate-100 placeholder-slate-800 focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/30"
                       : "bg-slate-50 border-slate-200 text-slate-800 placeholder-slate-400 focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
-                  }`}
+                    }`}
                 />
 
                 <button
                   type="submit"
                   disabled={joining || !joinCodeInput.trim()}
-                  className={`w-full py-3 px-4 rounded-xl font-bold transition-all duration-200 cursor-pointer text-xs uppercase tracking-wider flex items-center justify-center gap-2 ${
-                    isDarkMode
+                  className={`w-full py-3 px-4 rounded-xl font-bold transition-all duration-200 cursor-pointer text-xs uppercase tracking-wider flex items-center justify-center gap-2 ${isDarkMode
                       ? "bg-gradient-to-tr from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white shadow-lg shadow-cyan-500/15"
                       : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/15"
-                  }`}
+                    }`}
                 >
                   {joining ? (
                     <>

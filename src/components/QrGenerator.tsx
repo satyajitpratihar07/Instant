@@ -5,18 +5,20 @@ import { getAvatarGradient, getInitials } from "../utils";
 
 interface QrGeneratorProps {
   sessionId: string;
-  sessionName: string;
-  avatarSeed: string;
-  onRefresh: () => void;
+  sessionName?: string;
+  avatarSeed?: string;
+  onRefresh?: () => void;
   isDarkMode: boolean;
+  simple?: boolean;
 }
 
 export default function QrGenerator({
   sessionId,
-  sessionName,
-  avatarSeed,
-  onRefresh,
+  sessionName = "",
+  avatarSeed = "",
+  onRefresh = () => {},
   isDarkMode,
+  simple = false,
 }: QrGeneratorProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [copied, setCopied] = useState(false);
@@ -35,7 +37,7 @@ export default function QrGenerator({
         canvasRef.current,
         inviteLink,
         {
-          width: 450,
+          width: 280,
           margin: 1.5,
           color: {
             dark: darkColor,
@@ -64,12 +66,25 @@ export default function QrGenerator({
   const initials = getInitials(sessionName);
   const gradientClass = getAvatarGradient(avatarSeed);
 
+  if (simple) {
+    return (
+      <div
+        id="qr-canvas-wrapper"
+        className={`flex flex-col items-center justify-center p-4 bg-white rounded-2xl border ${
+          isDarkMode ? "border-cyan-500/35 shadow-[0_0_25px_rgba(6,182,212,0.2)]" : "border-slate-100 shadow-inner"
+        }`}
+      >
+        <canvas id="qr-canvas-element" ref={canvasRef} className="w-full max-w-[240px] h-auto object-contain rounded-lg" />
+      </div>
+    );
+  }
+
   return (
     <div id="qr-generator-container" className="flex flex-col items-center">
       {/* Premium Glassmorphism Card */}
       <div
         id="qr-card"
-        className={`relative w-full max-w-lg rounded-3xl p-6 transition-all duration-300 shadow-2xl border ${isDarkMode
+        className={`relative w-full max-w-[380px] rounded-3xl p-6 transition-all duration-300 shadow-2xl border ${isDarkMode
             ? "bg-sleek-card border-white/5 shadow-cyan-500/5"
             : "bg-white/90 border-slate-200/80 shadow-slate-200/50"
           }`}
@@ -105,9 +120,12 @@ export default function QrGenerator({
 
         {/* QR Code Container */}
         <div id="qr-canvas-wrapper" className={`flex flex-col items-center justify-center p-6 bg-white rounded-3xl border ${isDarkMode ? "border-cyan-500/35 shadow-[0_0_30px_rgba(6,182,212,0.18)]" : "border-slate-100 shadow-inner"}`}>
-          <canvas id="qr-canvas-element" ref={canvasRef} className="w-full max-w-[300px] sm:max-w-[380px] h-auto object-contain rounded-lg" />
-          <p className="text-[9px] text-slate-400 mt-3 font-mono break-all select-all font-semibold">
-            SECURE ID: {sessionId.substring(0, 18)}
+          <canvas id="qr-canvas-element" ref={canvasRef} className="w-full max-w-[250px] h-auto object-contain rounded-lg" />
+          <p className="text-[9px] text-slate-400 mt-4 font-mono break-all select-all font-bold uppercase tracking-wider text-center">
+            {/^\d{6}$/.test(sessionId)
+              ? `INVITE CODE: ${sessionId.substring(0, 3)} ${sessionId.substring(3, 6)}`
+              : `SECURE ID: ${sessionId.substring(0, 18)}`
+            }
           </p>
         </div>
 

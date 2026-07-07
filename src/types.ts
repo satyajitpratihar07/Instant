@@ -41,3 +41,10 @@ export interface PendingFile {
   base64Data: string;
   isImage: boolean;
 }
+
+export interface JoinRequest {
+  id: string;
+  name: string;
+  avatarSeed: string;
+  timestamp: number;
+}

@@ -15,7 +15,7 @@ import {
   Check,
   AlertCircle
 } from "lucide-react";
-import { Message, Peer, Session } from "./types";
+import { Message, Peer, Session, JoinRequest } from "./types";
 import { playNotificationSound, getAvatarGradient, getInitials } from "./utils";
 import QrGenerator from "./components/QrGenerator";
 import QrScanner from "./components/QrScanner";
@@ -52,9 +52,14 @@ export default function App() {
 
   // --- Real-time Peer State ---
   const [peer, setPeer] = useState<Peer | null>(null);
+  const [peers, setPeers] = useState<Peer[]>([]);
   const [peerOnline, setPeerOnline] = useState(false);
   const [peerTyping, setPeerTyping] = useState(false);
+  const [typingNames, setTypingNames] = useState<string[]>([]);
+  const [autoShowInvite, setAutoShowInvite] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([]);
+  const [waitingForGroupApprove, setWaitingForGroupApprove] = useState<string | null>(null);
   const [incomingRequest, setIncomingRequest] = useState<{
     id: string;
     name: string;
@@ -126,14 +131,17 @@ export default function App() {
         const { type, roomId, peerName } = data.pairingStatus;
         if (type === "declined") {
           setWaitingForResponse(null);
+          setWaitingForGroupApprove(null);
           setIsConnecting(false);
-          addToast(`${peerName || "Peer"} declined your chat invitation.`, "error");
+          addToast(`${peerName || "Host"} declined your chat join request.`, "error");
           update(mySessionRef, { pairingStatus: null });
         } else if (type === "accepted") {
           playNotificationSound("success");
           setWaitingForResponse(null);
+          setWaitingForGroupApprove(null);
           setIsConnecting(false);
           setIncomingRequest(null);
+          addToast("Successfully joined chat room!", "success");
           update(mySessionRef, { pairingStatus: null });
         }
       }
@@ -146,6 +154,7 @@ export default function App() {
   useEffect(() => {
     if (!session?.connectedRoomId || !session?.id) {
       setPeer(null);
+      setPeers([]);
       setPeerOnline(false);
       setPeerTyping(false);
       setMessages([]);
@@ -154,13 +163,21 @@ export default function App() {
 
     const roomId = session.connectedRoomId;
     const roomRef = ref(db, `rooms/${roomId}`);
-    
-    let peerUnsubscribe: (() => void) | null = null;
+
+    // Periodically update my heartbeat inside the room members node
+    const heartbeatInterval = setInterval(() => {
+      if (session?.id) {
+        update(ref(db, `rooms/${roomId}/members/${session.id}`), {
+          lastActive: Date.now()
+        }).catch((err) => console.error("Heartbeat failed:", err));
+      }
+    }, 12000);
 
     const roomUnsubscribe = onValue(roomRef, (snapshot) => {
       if (!snapshot.exists()) {
         // Room was closed/deleted
         setPeer(null);
+        setPeers([]);
         setPeerOnline(false);
         setPeerTyping(false);
         setMessages([]);
@@ -171,19 +188,41 @@ export default function App() {
       }
 
       const roomData = snapshot.val();
-      const peerId = roomData.peerA === session.id ? roomData.peerB : roomData.peerA;
-      
+      const membersMap = roomData.members || {};
+
+      // Security check: Kick out of chat room if user is not an approved member
+      if (!membersMap[session.id]) {
+        setPeer(null);
+        setPeers([]);
+        setPeerOnline(false);
+        setPeerTyping(false);
+        setMessages([]);
+        setSession((prev) => prev ? { ...prev, connectedRoomId: null } : null);
+        update(ref(db, `sessions/${session.id}`), { connectedRoomId: null });
+        setView("home");
+        addToast("Access denied. You are not a member of this chat room.", "error");
+        return;
+      }
+
+      // Sync join requests
+      if (roomData.joinRequests) {
+        const reqs = Object.values(roomData.joinRequests) as JoinRequest[];
+        setJoinRequests(reqs.sort((a, b) => b.timestamp - a.timestamp));
+      } else {
+        setJoinRequests([]);
+      }
+
       // Sync messages
       if (roomData.messages) {
         const msgList: Message[] = Object.entries(roomData.messages).map(([id, val]: [string, any]) => ({
           id,
           senderId: val.senderId,
-          senderName: val.senderId === session.id ? session.name : (peer?.name || "Peer"),
+          senderName: val.senderId === session.id ? session.name : (membersMap[val.senderId]?.name || val.senderName || "Member"),
           text: val.text,
           timestamp: val.timestamp,
           file: val.file || undefined
         })).sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
-        
+
         // Play sound for incoming message
         setMessages((prev) => {
           if (msgList.length > prev.length) {
@@ -198,37 +237,44 @@ export default function App() {
         setMessages([]);
       }
 
-      // Sync typing
-      if (roomData.typing && peerId) {
-        setPeerTyping(!!roomData.typing[peerId]);
+      // Sync other members as Peers
+      const peersList: Peer[] = Object.entries(membersMap)
+        .filter(([id]) => id !== session.id)
+        .map(([id, val]: [string, any]) => ({
+          id,
+          name: val.name || "Member",
+          avatarSeed: val.avatarSeed || "default",
+          online: Date.now() - (val.lastActive || 0) < 25000
+        }));
+      setPeers(peersList);
+
+      // Set fallback peer for 1-to-1 visual backward compatibility
+      if (peersList.length > 0) {
+        setPeer(peersList[0]);
       } else {
-        setPeerTyping(false);
+        setPeer(null);
       }
 
-      // Sync peer profile and heartbeat online check
-      if (peerId && !peerUnsubscribe) {
-        const peerRef = ref(db, `sessions/${peerId}`);
-        peerUnsubscribe = onValue(peerRef, (peerSnapshot) => {
-          if (peerSnapshot.exists()) {
-            const peerData = peerSnapshot.val();
-            const isOnline = Date.now() - (peerData.lastActive || 0) < 25000;
-            setPeer({
-              id: peerId,
-              name: peerData.name,
-              avatarSeed: peerData.avatarSeed,
-              online: isOnline
-            });
-            setPeerOnline(isOnline);
-          }
-        });
-      }
+      // Set fallback health indicator for 1-to-1 visual backward compatibility
+      const hasOnlinePeer = peersList.some(p => p.online);
+      setPeerOnline(hasOnlinePeer);
+
+      // Sync typing
+      const typingMap = roomData.typing || {};
+      const typingIds = Object.entries(typingMap)
+        .filter(([id, isTyping]) => id !== session.id && isTyping)
+        .map(([id]) => id);
+      setPeerTyping(typingIds.length > 0);
+
+      const typingNamesList = typingIds.map(id => membersMap[id]?.name || "Someone");
+      setTypingNames(typingNamesList);
     });
 
     return () => {
+      clearInterval(heartbeatInterval);
       roomUnsubscribe();
-      if (peerUnsubscribe) peerUnsubscribe();
     };
-  }, [session?.connectedRoomId, session?.id, peer?.name]);
+  }, [session?.connectedRoomId, session?.id]);
 
   // --- Handshake & Register Session ---
   useEffect(() => {
@@ -248,7 +294,7 @@ export default function App() {
 
     // 3. Register or restore session
     const savedSessionId = localStorage.getItem("qr_p2p_session_id");
-    
+
     const initializeSession = async () => {
       let activeSession: Session | null = null;
 
@@ -281,7 +327,7 @@ export default function App() {
 
       setSession(activeSession);
       localStorage.setItem("qr_p2p_session_id", activeSession.id);
-      
+
       // Auto connect if parameter exists
       if (autoConnectRef.current) {
         const target = autoConnectRef.current;
@@ -295,10 +341,81 @@ export default function App() {
     initializeSession();
   }, []);
 
+  // --- Create Chat Room Hook (Add Member Flow) ---
+  const handleCreateRoom = async () => {
+    if (!session) return;
+
+    const newRoomId = generateUUID();
+    try {
+      await set(ref(db, `rooms/${newRoomId}`), {
+        id: newRoomId,
+        createdTime: Date.now(),
+        members: {
+          [session.id]: {
+            id: session.id,
+            name: session.name,
+            avatarSeed: session.avatarSeed,
+            joinedAt: Date.now(),
+            lastActive: Date.now()
+          }
+        }
+      });
+
+      await update(ref(db, `sessions/${session.id}`), {
+        connectedRoomId: newRoomId
+      });
+
+      setSession((prev) => prev ? { ...prev, connectedRoomId: newRoomId } : null);
+      setAutoShowInvite(true); // Open invite modal automatically in chat room
+      setView("chat");
+      addToast("Chat room created! Ready to invite members.", "success");
+    } catch (err) {
+      console.error("Failed to create room:", err);
+      addToast("Failed to create chat room.", "error");
+    }
+  };
+
   // --- Dispatch Connection Request ---
   const requestConnection = async (targetId: string, currentSession = session) => {
     const activeSess = currentSession || session;
     if (!activeSess) return;
+
+    const sanitized = targetId.trim().replace(/[-\s]/g, "");
+
+    // 1. If it's a 6-digit code:
+    if (/^\d{6}$/.test(sanitized)) {
+      setIsConnecting(true);
+      try {
+        const codeSnap = await get(ref(db, `codes/${sanitized}`));
+        if (codeSnap.exists()) {
+          const val = codeSnap.val();
+          const roomId = val.roomId;
+
+          if (roomId) {
+            // Write a join request instead of directly joining
+            await set(ref(db, `rooms/${roomId}/joinRequests/${activeSess.id}`), {
+              id: activeSess.id,
+              name: activeSess.name,
+              avatarSeed: activeSess.avatarSeed,
+              timestamp: Date.now()
+            });
+
+            setWaitingForGroupApprove(roomId);
+            addToast("Join request sent. Awaiting approval...", "info");
+          } else {
+            addToast("This invite code is expired or invalid.", "error");
+          }
+        } else {
+          addToast("Invalid invite code.", "error");
+        }
+      } catch (err) {
+        console.error("Code lookup failed:", err);
+        addToast("Failed to verify invite code.", "error");
+      } finally {
+        setIsConnecting(false);
+      }
+      return;
+    }
 
     if (targetId === activeSess.id) {
       addToast("You cannot pair with your own session QR code.", "error");
@@ -341,11 +458,25 @@ export default function App() {
         addToast("Pairing invitation declined.", "info");
       } else {
         const newRoomId = generateUUID();
-        
+
         await set(ref(db, `rooms/${newRoomId}`), {
           id: newRoomId,
-          peerA: session.id,
-          peerB: senderId,
+          members: {
+            [session.id]: {
+              id: session.id,
+              name: session.name,
+              avatarSeed: session.avatarSeed,
+              joinedAt: Date.now(),
+              lastActive: Date.now()
+            },
+            [senderId]: {
+              id: senderId,
+              name: incomingRequest.name,
+              avatarSeed: incomingRequest.avatarSeed,
+              joinedAt: Date.now(),
+              lastActive: Date.now()
+            }
+          },
           createdTime: Date.now()
         });
 
@@ -365,26 +496,90 @@ export default function App() {
     setIncomingRequest(null);
   };
 
+  // --- Respond to Group Join Request ---
+  const respondGroupConnection = async (requester: JoinRequest, accept: boolean) => {
+    if (!session?.connectedRoomId) return;
+    const roomId = session.connectedRoomId;
+    const senderId = requester.id;
+
+    try {
+      // 1. Remove from joinRequests node
+      await remove(ref(db, `rooms/${roomId}/joinRequests/${senderId}`));
+
+      if (accept) {
+        // 2. Add to members list of the room
+        await set(ref(db, `rooms/${roomId}/members/${senderId}`), {
+          id: senderId,
+          name: requester.name,
+          avatarSeed: requester.avatarSeed,
+          joinedAt: Date.now(),
+          lastActive: Date.now()
+        });
+
+        // 3. Update joining session connectedRoomId and pairingStatus
+        await update(ref(db, `sessions/${senderId}`), {
+          connectedRoomId: roomId,
+          pairingStatus: { type: "accepted", roomId }
+        });
+
+        addToast(`${requester.name} has joined the chat!`, "success");
+        playNotificationSound("success");
+      } else {
+        // 3. Notify joiner they were declined
+        await update(ref(db, `sessions/${senderId}`), {
+          pairingStatus: { type: "declined", peerName: session.name }
+        });
+        addToast(`Declined join request from ${requester.name}.`, "info");
+      }
+    } catch (err) {
+      console.error("Failed to respond to group join request", err);
+      addToast("Failed to process request.", "error");
+    }
+  };
+
+  // --- Cancel My Join Request ---
+  const cancelJoinRequest = async () => {
+    if (!waitingForGroupApprove || !session) return;
+    const roomId = waitingForGroupApprove;
+    try {
+      await remove(ref(db, `rooms/${roomId}/joinRequests/${session.id}`));
+    } catch (err) {
+      console.error("Failed to cancel join request:", err);
+    }
+    setWaitingForGroupApprove(null);
+    addToast("Cancelled join request.", "info");
+  };
+
   // --- Disconnect Active Chat Room ---
   const leaveRoom = async () => {
     if (!session?.connectedRoomId) return;
     const roomId = session.connectedRoomId;
-    
+
     try {
+      // 1. Remove myself from room members list
+      await remove(ref(db, `rooms/${roomId}/members/${session.id}`));
+
+      // 2. Clear typing indicator if active
+      await remove(ref(db, `rooms/${roomId}/typing/${session.id}`));
+
+      // 3. Clear my session connectedRoomId
+      await update(ref(db, `sessions/${session.id}`), { connectedRoomId: null });
+
+      // 4. If no members left in the room, clean it up from database
       const roomSnap = await get(ref(db, `rooms/${roomId}`));
       if (roomSnap.exists()) {
         const roomData = roomSnap.val();
-        const peerId = roomData.peerA === session.id ? roomData.peerB : roomData.peerA;
-        if (peerId) {
-          await update(ref(db, `sessions/${peerId}`), { connectedRoomId: null });
+        const remainingMembers = Object.keys(roomData.members || {});
+        if (remainingMembers.length === 0) {
+          await remove(ref(db, `rooms/${roomId}`));
         }
       }
 
-      await remove(ref(db, `rooms/${roomId}`));
-      await update(ref(db, `sessions/${session.id}`), { connectedRoomId: null });
-      
+      setSession((prev) => prev ? { ...prev, connectedRoomId: null } : null);
+      setPeers([]);
+      setMessages([]);
       setView("home");
-      addToast("You left the chat room. Session closed.", "info");
+      addToast("You left the chat room.", "info");
     } catch (e) {
       console.error("Failed to leave room:", e);
       setSession((prev) => prev ? { ...prev, connectedRoomId: null } : null);
@@ -403,6 +598,7 @@ export default function App() {
       await set(newMsgRef, {
         id: newMsgRef.key,
         senderId: session.id,
+        senderName: session.name, // Save sender name directly inside the message
         text,
         timestamp: Date.now(),
         file: fileId ? { id: fileId, ...fileMeta } : null
@@ -441,7 +637,7 @@ export default function App() {
     if (session?.connectedRoomId) {
       await leaveRoom();
     }
-    
+
     localStorage.removeItem("qr_p2p_session_id");
     const newId = generateUUID();
     const newSession = {
@@ -472,9 +668,8 @@ export default function App() {
   return (
     <div
       id="app-theme-root"
-      className={`min-h-screen font-sans transition-colors duration-300 ${
-        isDarkMode ? "bg-sleek-body text-slate-100" : "bg-slate-50 text-slate-800"
-      }`}
+      className={`min-h-screen font-sans transition-colors duration-300 ${isDarkMode ? "bg-sleek-body text-slate-100" : "bg-slate-50 text-slate-800"
+        }`}
     >
       {/* Background Decorative Tech Grids */}
       <div id="grid-background" className="fixed inset-0 pointer-events-none overflow-hidden z-0">
@@ -497,11 +692,10 @@ export default function App() {
         {/* Navigation / Control Header */}
         <header
           id="global-nav-bar"
-          className={`flex items-center justify-between py-4 px-6 my-4 rounded-2xl border select-none transition-colors duration-300 ${
-            isDarkMode
+          className={`flex items-center justify-between py-4 px-6 my-4 rounded-2xl border select-none transition-colors duration-300 ${isDarkMode
               ? "bg-sleek-card border-white/5 shadow-lg shadow-black/35"
               : "bg-white border-slate-200/80 shadow-md"
-          }`}
+            }`}
         >
           <div id="brand-logo" className="flex items-center gap-3">
             <div
@@ -532,11 +726,10 @@ export default function App() {
             <button
               id="theme-toggle-btn"
               onClick={handleToggleTheme}
-              className={`p-2.5 rounded-xl border cursor-pointer transition-all ${
-                isDarkMode
+              className={`p-2.5 rounded-xl border cursor-pointer transition-all ${isDarkMode
                   ? "border-white/10 hover:border-cyan-500/50 text-amber-400 bg-white/5"
                   : "border-slate-200 hover:border-indigo-600 text-indigo-600 bg-white"
-              }`}
+                }`}
               title={isDarkMode ? "Switch to Light Theme" : "Switch to Dark Theme"}
             >
               {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
@@ -566,16 +759,16 @@ export default function App() {
               <div id="action-buttons-grid" className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-md mx-auto select-none">
                 <button
                   id="btn-generate-flow"
-                  onClick={() => setView("generate")}
+                  onClick={handleCreateRoom}
                   className="flex flex-col items-center gap-4 p-6 rounded-3xl border transition-all duration-300 cursor-pointer bg-gradient-to-tr from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white shadow-xl shadow-cyan-500/10 border-white/5 hover:scale-[1.02] group"
                 >
                   <div className="p-4 rounded-2xl bg-white/10 text-white">
                     <QrCode className="w-8 h-8 group-hover:rotate-6 transition-transform" />
                   </div>
                   <div className="text-center">
-                    <h4 className="font-bold text-base">Add Member</h4>
+                    <h4 className="font-bold text-base">Create Chat</h4>
                     <p className="text-[11px] text-cyan-100/80 mt-1">
-                      Get QR & 6-digit code to invite a member
+                      Start a new group chat room instantly
                     </p>
                   </div>
                 </button>
@@ -583,11 +776,10 @@ export default function App() {
                 <button
                   id="btn-scan-flow"
                   onClick={() => setView("scan")}
-                  className={`flex flex-col items-center gap-4 p-6 rounded-3xl border transition-all duration-300 cursor-pointer hover:scale-[1.02] group ${
-                    isDarkMode
+                  className={`flex flex-col items-center gap-4 p-6 rounded-3xl border transition-all duration-300 cursor-pointer hover:scale-[1.02] group ${isDarkMode
                       ? "bg-white/5 border-white/5 hover:border-cyan-500/30 hover:bg-white/10 text-white"
                       : "bg-white border-slate-200 hover:border-indigo-600 hover:bg-slate-50 text-slate-800"
-                  }`}
+                    }`}
                 >
                   <div className="p-4 rounded-2xl bg-cyan-500/10 text-cyan-400">
                     <ScanLine className="w-8 h-8 group-hover:scale-110 transition-transform" />
@@ -603,27 +795,6 @@ export default function App() {
             </div>
           )}
 
-          {view === "generate" && session && (
-            <div id="generate-view" className="animate-slide-up flex flex-col items-center gap-6">
-              <QrGenerator
-                sessionId={session.id}
-                sessionName={session.name}
-                avatarSeed={session.avatarSeed}
-                onRefresh={handleRefreshSession}
-                isDarkMode={isDarkMode}
-              />
-              <button
-                id="btn-generate-back"
-                onClick={() => setView("home")}
-                className={`text-xs font-semibold py-2 px-4 rounded-lg cursor-pointer ${
-                  isDarkMode ? "text-slate-400 hover:text-white" : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                ← Back to Home
-              </button>
-            </div>
-          )}
-
           {view === "scan" && (
             <div id="scan-view" className="animate-slide-up">
               <QrScanner
@@ -634,7 +805,7 @@ export default function App() {
             </div>
           )}
 
-          {view === "chat" && session && peer && (
+          {view === "chat" && session && (
             <div id="chat-view" className="animate-scale-up w-full h-full max-w-5xl mx-auto">
               <ChatRoom
                 roomId={session.connectedRoomId || ""}
@@ -642,15 +813,20 @@ export default function App() {
                 sessionName={session.name}
                 avatarSeed={session.avatarSeed}
                 peer={peer}
+                peers={peers}
                 messages={messages}
                 peerOnline={peerOnline}
                 peerTyping={peerTyping}
+                typingNames={typingNames}
+                joinRequests={joinRequests}
                 onSendMessage={sendMessage}
                 onDeleteMessage={deleteMessage}
                 onSetTyping={handleSetTyping}
                 onLeaveRoom={leaveRoom}
                 onScanSuccess={requestConnection}
+                onRespondJoinRequest={respondGroupConnection}
                 isDarkMode={isDarkMode}
+                autoShowInvite={autoShowInvite}
               />
             </div>
           )}
@@ -659,11 +835,10 @@ export default function App() {
         {/* Global Footer (Status Micro-Rail inspired by Sleek Theme) */}
         <footer
           id="global-footer"
-          className={`py-3 px-6 mt-auto rounded-xl border select-none transition-colors duration-300 flex flex-col sm:flex-row items-center justify-between gap-3 text-[10px] font-mono tracking-wider ${
-            isDarkMode
+          className={`py-3 px-6 mt-auto rounded-xl border select-none transition-colors duration-300 flex flex-col sm:flex-row items-center justify-between gap-3 text-[10px] font-mono tracking-wider ${isDarkMode
               ? "bg-[#0E0E12] border-white/5 text-slate-500"
               : "bg-white border-slate-200/80 text-slate-600 shadow-sm"
-          }`}
+            }`}
         >
           <div className="flex flex-wrap items-center gap-4 sm:gap-6">
             <div className="flex items-center gap-2">
@@ -735,21 +910,42 @@ export default function App() {
         </div>
       )}
 
-      {/* --- Toast Notifications Banner Feed --- */}
+      {/* --- Overlay 3: Group Join Approval Loader --- */}
+      {waitingForGroupApprove && (
+        <div id="group-join-loader-backdrop" className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4 select-none">
+          <div
+            id="group-join-loader-card"
+            className="w-full max-w-[400px] bg-[#16161A] border border-cyan-500/30 rounded-3xl p-6 shadow-[0_30px_60px_-12px_rgba(0,0,0,0.8),0_0_20px_rgba(34,211,238,0.2)] text-center relative animate-scale-up"
+          >
+            <div id="spinning-loader" className="flex justify-center mb-5">
+              <div className="w-12 h-12 rounded-full border-4 border-t-cyan-400 border-cyan-500/10 animate-spin shadow-[0_0_15px_rgba(34,211,238,0.3)]" />
+            </div>
+            <h4 className="text-lg font-black text-white tracking-tight">Requesting Entry...</h4>
+            <p className="text-xs text-slate-400 mt-2 px-4 leading-relaxed">
+              Your join request has been delivered. Please wait for a chat room member to approve you.
+            </p>
+            <button
+              onClick={cancelJoinRequest}
+              className="mt-6 px-5 py-2.5 bg-white/5 border border-white/10 hover:bg-white/10 text-white font-bold rounded-xl transition-all hover:scale-[1.02] cursor-pointer text-xs uppercase tracking-wider"
+            >
+              Cancel Request
+            </button>
+          </div>
+        </div>
+      )}
       <div id="toast-banners-holder" className="fixed bottom-6 right-6 z-50 flex flex-col gap-2.5 max-w-sm pointer-events-none select-none">
         {toasts.map((toast) => (
           <div
             id={`toast-${toast.id}`}
             key={toast.id}
-            className={`p-3.5 rounded-2xl shadow-xl flex items-center gap-3 border pointer-events-auto animate-slide-up text-xs font-semibold ${
-              toast.type === "success"
+            className={`p-3.5 rounded-2xl shadow-xl flex items-center gap-3 border pointer-events-auto animate-slide-up text-xs font-semibold ${toast.type === "success"
                 ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
                 : toast.type === "error"
-                ? "bg-rose-500/10 text-rose-400 border-rose-500/20"
-                : isDarkMode
-                ? "bg-slate-900 border-slate-800 text-slate-100"
-                : "bg-white border-slate-200 text-slate-700"
-            }`}
+                  ? "bg-rose-500/10 text-rose-400 border-rose-500/20"
+                  : isDarkMode
+                    ? "bg-slate-900 border-slate-800 text-slate-100"
+                    : "bg-white border-slate-200 text-slate-700"
+              }`}
           >
             {toast.type === "success" ? (
               <Check className="w-4 h-4 shrink-0" />
