@@ -31,7 +31,7 @@ import Lightbox from "./Lightbox";
 import QrGenerator from "./QrGenerator";
 import QrScanner from "./QrScanner";
 import { db } from "../firebase";
-import { ref as dbRef, set, get, remove } from "firebase/database";
+import { ref as dbRef, set, get, remove, onDisconnect } from "firebase/database";
 import { AlertCircle } from "lucide-react";
 
 // Determine appropriate icon for attachments
@@ -229,6 +229,8 @@ export default function ChatRoom({
           roomId,
           createdAt: Date.now(),
         });
+        // Register onDisconnect to remove code
+        onDisconnect(dbRef(db, `codes/${code}`)).remove();
       } catch (err) {
         console.error("Error registering code:", err);
       }
@@ -236,6 +238,7 @@ export default function ChatRoom({
     registerCode();
 
     return () => {
+      onDisconnect(dbRef(db, `codes/${code}`)).cancel();
       remove(dbRef(db, `codes/${code}`)).catch((err) => {
         console.error("Error removing code registration:", err);
       });

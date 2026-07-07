@@ -25,12 +25,22 @@ export default function QrScanner({ onScanSuccess, onCancel, isDarkMode }: QrSca
         const html5Qrcode = new Html5Qrcode("qr-reader-target");
         scannerRef.current = html5Qrcode;
 
+        // Query available cameras
+        const cameras = await Html5Qrcode.getCameras();
+        if (!cameras || cameras.length === 0) {
+          throw new Error("No cameras found on this device.");
+        }
+
+        // Find back/environment camera if available
+        const backCamera = cameras.find(c => 
+          c.label.toLowerCase().includes("back") || 
+          c.label.toLowerCase().includes("rear") || 
+          c.label.toLowerCase().includes("environment")
+        );
+        const cameraId = backCamera ? backCamera.id : cameras[0].id;
+
         await html5Qrcode.start(
-          { 
-            facingMode: "environment",
-            width: { min: 640, ideal: 1280, max: 1920 },
-            height: { min: 480, ideal: 720, max: 1080 }
-          },
+          cameraId,
           {
             fps: 20,
             qrbox: (width, height) => {

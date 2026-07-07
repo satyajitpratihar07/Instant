@@ -21,7 +21,7 @@ import QrGenerator from "./components/QrGenerator";
 import QrScanner from "./components/QrScanner";
 import ChatRoom from "./components/ChatRoom";
 import { db } from "./firebase";
-import { ref, set, get, update, remove, onValue, push } from "firebase/database";
+import { ref, set, get, update, remove, onValue, push, onDisconnect } from "firebase/database";
 
 interface Toast {
   id: string;
@@ -248,6 +248,21 @@ export default function App() {
         }));
       setPeers(peersList);
 
+      // Register disconnect cleanup handlers
+      const myMemberRef = ref(db, `rooms/${roomId}/members/${session.id}`);
+      const myTypingRef = ref(db, `rooms/${roomId}/typing/${session.id}`);
+      const roomNodeRef = ref(db, `rooms/${roomId}`);
+
+      onDisconnect(myMemberRef).remove();
+      onDisconnect(myTypingRef).remove();
+
+      // If no other peers are present, delete the entire room on disconnect
+      if (peersList.length === 0) {
+        onDisconnect(roomNodeRef).remove();
+      } else {
+        onDisconnect(roomNodeRef).cancel();
+      }
+
       // Set fallback peer for 1-to-1 visual backward compatibility
       if (peersList.length > 0) {
         setPeer(peersList[0]);
@@ -273,6 +288,14 @@ export default function App() {
     return () => {
       clearInterval(heartbeatInterval);
       roomUnsubscribe();
+
+      // Cancel onDisconnect handlers for this room session
+      const myMemberRef = ref(db, `rooms/${roomId}/members/${session.id}`);
+      const myTypingRef = ref(db, `rooms/${roomId}/typing/${session.id}`);
+      const roomNodeRef = ref(db, `rooms/${roomId}`);
+      onDisconnect(myMemberRef).cancel();
+      onDisconnect(myTypingRef).cancel();
+      onDisconnect(roomNodeRef).cancel();
     };
   }, [session?.connectedRoomId, session?.id]);
 
@@ -324,6 +347,9 @@ export default function App() {
           console.error("Error creating session:", e);
         }
       }
+
+      // Clean up session node on disconnect/refresh
+      onDisconnect(ref(db, `sessions/${activeSession.id}`)).remove();
 
       setSession(activeSession);
       localStorage.setItem("qr_p2p_session_id", activeSession.id);
