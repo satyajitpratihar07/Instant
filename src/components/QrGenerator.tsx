@@ -35,7 +35,7 @@ export default function QrGenerator({
         canvasRef.current,
         inviteLink,
         {
-          width: 256,
+          width: 384,
           margin: 1.5,
           color: {
             dark: darkColor,
@@ -69,7 +69,7 @@ export default function QrGenerator({
       {/* Premium Glassmorphism Card */}
       <div
         id="qr-card"
-        className={`relative w-full max-w-sm rounded-3xl p-6 transition-all duration-300 shadow-2xl border ${isDarkMode
+        className={`relative w-full max-w-md rounded-3xl p-6 transition-all duration-300 shadow-2xl border ${isDarkMode
             ? "bg-sleek-card border-white/5 shadow-cyan-500/5"
             : "bg-white/90 border-slate-200/80 shadow-slate-200/50"
           }`}
@@ -104,8 +104,8 @@ export default function QrGenerator({
         </div>
 
         {/* QR Code Container */}
-        <div id="qr-canvas-wrapper" className={`flex flex-col items-center justify-center p-5 bg-white rounded-3xl border ${isDarkMode ? "border-cyan-500/35 shadow-[0_0_30px_rgba(6,182,212,0.18)]" : "border-slate-100 shadow-inner"}`}>
-          <canvas id="qr-canvas-element" ref={canvasRef} className="w-full max-w-[200px] h-auto object-contain rounded-lg" />
+        <div id="qr-canvas-wrapper" className={`flex flex-col items-center justify-center p-6 bg-white rounded-3xl border ${isDarkMode ? "border-cyan-500/35 shadow-[0_0_30px_rgba(6,182,212,0.18)]" : "border-slate-100 shadow-inner"}`}>
+          <canvas id="qr-canvas-element" ref={canvasRef} className="w-full max-w-[260px] sm:max-w-[320px] h-auto object-contain rounded-lg" />
           <p className="text-[9px] text-slate-400 mt-3 font-mono break-all select-all font-semibold">
             SECURE ID: {sessionId.substring(0, 18)}
           </p>
