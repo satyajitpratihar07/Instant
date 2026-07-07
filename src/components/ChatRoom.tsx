@@ -484,7 +484,7 @@ export default function ChatRoom({
 
       {/* Floating Group Join Requests Panel */}
       {joinRequests.length > 0 && (
-        <div id="floating-group-join-requests" className="absolute top-16 left-1/2 -translate-x-1/2 z-30 w-full max-w-sm px-4">
+        <div id="floating-group-join-requests" className="absolute top-16 left-1/2 -translate-x-1/2 z-[60] w-full max-w-sm px-4">
           <div className={`p-4 rounded-2xl border shadow-2xl flex flex-col gap-3 animate-scale-up backdrop-blur-md ${isDarkMode ? "bg-slate-900/95 border-cyan-500/35 text-white" : "bg-white/95 border-slate-200 text-slate-800"}`}>
             {joinRequests.map((req) => (
               <div key={req.id} className="flex items-center justify-between gap-3 py-1 border-b last:border-b-0 border-white/5">

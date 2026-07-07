@@ -207,7 +207,18 @@ export default function App() {
       // Sync join requests
       if (roomData.joinRequests) {
         const reqs = Object.values(roomData.joinRequests) as JoinRequest[];
-        setJoinRequests(reqs.sort((a, b) => b.timestamp - a.timestamp));
+        const sortedReqs = reqs.sort((a, b) => b.timestamp - a.timestamp);
+        setJoinRequests((prev) => {
+          if (sortedReqs.length > prev.length) {
+            const existingIds = new Set(prev.map((r) => r.id));
+            const newReq = sortedReqs.find((r) => !existingIds.has(r.id));
+            if (newReq) {
+              playNotificationSound("request");
+              addToast(`${newReq.name} is requesting to join the chat.`, "info");
+            }
+          }
+          return sortedReqs;
+        });
       } else {
         setJoinRequests([]);
       }
