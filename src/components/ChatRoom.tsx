@@ -159,9 +159,10 @@ interface ChatRoomProps {
   sessionId: string;
   sessionName: string;
   avatarSeed: string;
-  members: Peer[];
-  typingText: string;
+  peer: Peer;
   messages: Message[];
+  peerOnline: boolean;
+  peerTyping: boolean;
   onSendMessage: (text: string, fileId?: string, fileMeta?: any) => void;
   onDeleteMessage: (messageId: string) => void;
   onSetTyping?: (isTyping: boolean) => void;
@@ -175,9 +176,10 @@ export default function ChatRoom({
   sessionId,
   sessionName,
   avatarSeed,
-  members,
-  typingText,
+  peer,
   messages,
+  peerOnline,
+  peerTyping,
   onSendMessage,
   onDeleteMessage,
   onSetTyping,
@@ -207,7 +209,7 @@ export default function ChatRoom({
   // Auto-scroll to newest message
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, typingText]);
+  }, [messages, peerTyping]);
 
   // Adjust sidebar state for mobile by default
   useEffect(() => {
@@ -373,23 +375,6 @@ export default function ChatRoom({
 
   // getFileIcon moved to file scope
 
-  // Auto-open Add Member modal on home creation redirect
-  useEffect(() => {
-    if (localStorage.getItem("auto_open_add_member") === "true") {
-      setShowAddMember(true);
-      localStorage.removeItem("auto_open_add_member");
-    }
-  }, []);
-
-  const otherMembers = members.filter((m) => m.id !== sessionId);
-  const isGroup = otherMembers.length > 1;
-  const initials = isGroup ? "GP" : otherMembers.length === 1 ? getInitials(otherMembers[0].name) : "A";
-  const avatarSeedForHeader = isGroup ? roomId : otherMembers.length === 1 ? otherMembers[0].avatarSeed : avatarSeed;
-  const nameForHeader = isGroup ? "Secure Group Chat" : otherMembers.length === 1 ? otherMembers[0].name : "Awaiting Members...";
-  const statusTextForHeader = isGroup ? `${otherMembers.filter(m => m.online).length + 1} Members Active` : otherMembers.length === 1 && otherMembers[0].online ? "Direct Active" : otherMembers.length === 1 ? "Offline" : "Invite Members";
-  const isOnlineForHeader = isGroup ? true : otherMembers.length === 1 ? otherMembers[0].online : false;
-  const anyoneElseOnline = otherMembers.some(m => m.online);
-
   return (
     <div
       id="chat-layout-container"
@@ -425,26 +410,26 @@ export default function ChatRoom({
               <div
                 id="peer-avatar"
                 className={`w-9 h-9 md:w-10 md:h-10 rounded-xl flex items-center justify-center text-white font-bold bg-gradient-to-br shadow-md ${getAvatarGradient(
-                  avatarSeedForHeader
+                  peer.avatarSeed
                 )}`}
               >
-                {initials}
+                {getInitials(peer.name)}
               </div>
               <span
                 id="peer-online-indicator"
                 className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 md:w-3.5 md:h-3.5 rounded-full border-2 transition-colors ${
                   isDarkMode ? "border-[#0E0E12]" : "border-white"
                 } ${
-                  isOnlineForHeader ? "bg-emerald-500 shadow-[0_0_8px_#10b981]" : "bg-slate-500"
+                  peerOnline ? "bg-emerald-500 shadow-[0_0_8px_#10b981]" : "bg-slate-500"
                 }`}
               />
             </div>
             <div id="peer-status-info" className="text-left">
               <h4 className={`text-xs md:text-sm font-black tracking-tight ${isDarkMode ? "text-white" : "text-slate-800"}`}>
-                {nameForHeader}
+                {peer.name}
               </h4>
-              <p className={`text-[9px] md:text-[10px] font-bold uppercase tracking-wider ${isOnlineForHeader ? "text-cyan-400" : "text-slate-400"}`}>
-                {statusTextForHeader}
+              <p className={`text-[9px] md:text-[10px] font-bold uppercase tracking-wider ${peerOnline ? "text-cyan-400" : "text-slate-400"}`}>
+                {peerOnline ? "Direct Active" : "Offline"}
               </p>
             </div>
           </div>
@@ -586,8 +571,8 @@ export default function ChatRoom({
                         </span>
                         {isMe && (
                           <div id="receipt-ticks">
-                            {anyoneElseOnline ? (
-                              <CheckCheck className="w-3 h-3 text-cyan-200" title="Delivered to room" />
+                            {peerOnline ? (
+                              <CheckCheck className="w-3 h-3 text-cyan-200" title="Delivered to peer" />
                             ) : (
                               <Check className="w-3 h-3 text-cyan-300" title="Sent successfully" />
                             )}
@@ -628,10 +613,10 @@ export default function ChatRoom({
           )}
 
           {/* Typing indicator bubble */}
-          {typingText && (
+          {peerTyping && (
             <div id="peer-typing-indicator" className="flex flex-col items-start max-w-[80%] mr-auto">
               <span id="typing-label" className="text-[10px] text-slate-400 font-bold mb-1 ml-2 uppercase tracking-wider">
-                {typingText}
+                {peer.name} is typing
               </span>
               <div
                 id="typing-bubble"
@@ -885,32 +870,46 @@ export default function ChatRoom({
             {/* Participant Profiles list */}
             <div id="participants-panel" className="space-y-3">
               <h5 className={`text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>
-                Room Members ({members.length})
+                Pair Members
               </h5>
               
-              {members.map((m) => {
-                const isMe = m.id === sessionId;
-                return (
-                  <div id={`profile-row-${m.id}`} key={m.id} className="flex items-center gap-3">
-                    <div
-                      id={`${isMe ? "my" : "peer"}-mini-avatar`}
-                      className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs text-white font-bold bg-gradient-to-br shadow-sm ${getAvatarGradient(
-                        m.avatarSeed
-                      )}`}
-                    >
-                      {getInitials(m.name)}
-                    </div>
-                    <div id="profile-labels" className="text-left min-w-0 flex-1">
-                      <h6 className={`text-xs font-bold truncate ${isDarkMode ? "text-slate-200" : "text-slate-700"}`}>
-                        {m.name} {isMe && "(You)"}
-                      </h6>
-                      <p className={`text-[9px] font-semibold uppercase tracking-wider ${m.online ? "text-emerald-400" : "text-slate-500"}`}>
-                        {m.online ? "Online" : "Offline"}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
+              {/* My row */}
+              <div id="profile-row-me" className="flex items-center gap-3">
+                <div
+                  id="my-mini-avatar"
+                  className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs text-white font-bold bg-gradient-to-br shadow-sm ${getAvatarGradient(
+                    avatarSeed
+                  )}`}
+                >
+                  {getInitials(sessionName)}
+                </div>
+                <div id="my-profile-labels" className="text-left min-w-0 flex-1">
+                  <h6 className={`text-xs font-bold truncate ${isDarkMode ? "text-slate-200" : "text-slate-700"}`}>
+                    {sessionName} (You)
+                  </h6>
+                  <p className="text-[9px] font-semibold text-cyan-400 uppercase tracking-wider">Owner</p>
+                </div>
+              </div>
+
+              {/* Peer row */}
+              <div id="profile-row-peer" className="flex items-center gap-3">
+                <div
+                  id="peer-mini-avatar"
+                  className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs text-white font-bold bg-gradient-to-br shadow-sm ${getAvatarGradient(
+                    peer.avatarSeed
+                  )}`}
+                >
+                  {getInitials(peer.name)}
+                </div>
+                <div id="peer-profile-labels" className="text-left min-w-0 flex-1">
+                  <h6 className={`text-xs font-bold truncate ${isDarkMode ? "text-slate-200" : "text-slate-700"}`}>
+                    {peer.name}
+                  </h6>
+                  <p id="peer-status-label" className={`text-[9px] font-bold uppercase tracking-wider ${peerOnline ? "text-emerald-400" : "text-rose-400"}`}>
+                    {peerOnline ? "Online" : "Offline"}
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -941,7 +940,7 @@ export default function ChatRoom({
       {/* Add Member Modal */}
       {showAddMember && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="relative w-full max-w-sm animate-scale-up">
+          <div className="relative w-full max-w-lg animate-scale-up">
             <button
               onClick={() => setShowAddMember(false)}
               className="absolute top-4 right-4 p-1.5 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white z-10 cursor-pointer"
