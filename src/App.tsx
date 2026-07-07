@@ -573,9 +573,9 @@ export default function App() {
                     <QrCode className="w-8 h-8 group-hover:rotate-6 transition-transform" />
                   </div>
                   <div className="text-center">
-                    <h4 className="font-bold text-base">Generate My QR</h4>
+                    <h4 className="font-bold text-base">Add Member</h4>
                     <p className="text-[11px] text-cyan-100/80 mt-1">
-                      Display your QR and await connection
+                      Get QR & 6-digit code to invite a member
                     </p>
                   </div>
                 </button>
@@ -593,9 +593,9 @@ export default function App() {
                     <ScanLine className="w-8 h-8 group-hover:scale-110 transition-transform" />
                   </div>
                   <div className="text-center">
-                    <h4 className="font-bold text-base">Scan QR</h4>
+                    <h4 className="font-bold text-base">Join Chat</h4>
                     <p className="text-[11px] text-slate-400 mt-1">
-                      Open scanner to link with a peer
+                      Scan QR or enter 6-digit invite code
                     </p>
                   </div>
                 </button>

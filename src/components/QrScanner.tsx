@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Html5Qrcode } from "html5-qrcode";
-import { Camera, AlertCircle, Sparkles, Check, Send, ArrowRight, Upload } from "lucide-react";
+import { Camera, AlertCircle, Sparkles, Check, Send, ArrowRight, Upload, Loader2 } from "lucide-react";
+import { db } from "../firebase";
+import { ref as dbRef, get } from "firebase/database";
 
 interface QrScannerProps {
   onScanSuccess: (targetId: string) => void;
@@ -13,6 +15,7 @@ export default function QrScanner({ onScanSuccess, onCancel, isDarkMode }: QrSca
   const [scanError, setScanError] = useState<string | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const [manualInput, setManualInput] = useState("");
+  const [isLoadingCode, setIsLoadingCode] = useState(false);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -97,22 +100,48 @@ export default function QrScanner({ onScanSuccess, onCancel, isDarkMode }: QrSca
     }
   };
 
-  const handleManualPair = (e: React.FormEvent) => {
+  const handleManualPair = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!manualInput.trim()) return;
+    if (!manualInput.trim() || isLoadingCode) return;
 
-    // Parse the manual input if they paste the full link
     let targetId = manualInput.trim();
-    try {
-      if (targetId.startsWith("http")) {
-        const url = new URL(targetId);
-        const scanParam = url.searchParams.get("scan");
-        if (scanParam) {
-          targetId = scanParam;
+    
+    // Check if it's a 6-digit numeric code (e.g. 123456 or 123-456 or 123 456)
+    const sanitizedCode = targetId.replace(/[-\s]/g, "");
+    if (/^\d{6}$/.test(sanitizedCode)) {
+      setFileError(null);
+      setIsLoadingCode(true);
+      try {
+        const snap = await get(dbRef(db, `codes/${sanitizedCode}`));
+        if (snap.exists()) {
+          const val = snap.val();
+          targetId = val.sessionId;
+        } else {
+          setFileError("Invalid or expired 6-digit invite code. Please check and try again.");
+          setIsLoadingCode(false);
+          return;
         }
+      } catch (err) {
+        console.error("Error looking up invite code:", err);
+        setFileError("Failed to lookup invite code. Please check connection.");
+        setIsLoadingCode(false);
+        return;
+      } finally {
+        setIsLoadingCode(false);
       }
-    } catch (e) {
-      console.warn("Manual input URL parsing skipped:", e);
+    } else {
+      // Parse the manual input if they paste the full link
+      try {
+        if (targetId.startsWith("http")) {
+          const url = new URL(targetId);
+          const scanParam = url.searchParams.get("scan");
+          if (scanParam) {
+            targetId = scanParam;
+          }
+        }
+      } catch (e) {
+        console.warn("Manual input URL parsing skipped:", e);
+      }
     }
 
     // Trigger success
@@ -231,7 +260,7 @@ export default function QrScanner({ onScanSuccess, onCancel, isDarkMode }: QrSca
           
           <div className="flex items-center justify-between mb-2">
             <span className={`text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? "text-slate-400" : "text-slate-600"}`}>
-              Or Pair Manually
+              Or Join by Invite Code / Link
             </span>
             <button
               type="button"
@@ -248,9 +277,10 @@ export default function QrScanner({ onScanSuccess, onCancel, isDarkMode }: QrSca
               <input
                 id="manual-input"
                 type="text"
-                placeholder="Paste session invite URL or ID here..."
+                placeholder="Enter 6-digit code, invite link or ID..."
                 value={manualInput}
                 onChange={(e) => setManualInput(e.target.value)}
+                disabled={isLoadingCode}
                 className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-mono outline-none border transition-all ${
                   isDarkMode
                     ? "bg-slate-950/80 border-white/10 text-slate-100 placeholder-slate-600 focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/30"
@@ -260,10 +290,14 @@ export default function QrScanner({ onScanSuccess, onCancel, isDarkMode }: QrSca
               <button
                 id="btn-manual-submit"
                 type="submit"
-                disabled={!manualInput.trim()}
+                disabled={!manualInput.trim() || isLoadingCode}
                 className="p-3 rounded-xl bg-gradient-to-tr from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 disabled:opacity-40 text-white transition-all cursor-pointer flex items-center justify-center shrink-0 shadow-lg shadow-cyan-500/15"
               >
-                <ArrowRight className="w-4 h-4" />
+                {isLoadingCode ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <ArrowRight className="w-4 h-4" />
+                )}
               </button>
             </div>
           </form>
