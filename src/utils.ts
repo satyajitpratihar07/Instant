@@ -69,7 +69,8 @@ export function getInitials(name: string): string {
  * Generates a vibrant UI gradient from a seed string
  */
 export function getAvatarGradient(seed: string): string {
-  const hash = seed.split("").reduce((acc, char) => {
+  const safeSeed = seed || "default";
+  const hash = safeSeed.split("").reduce((acc, char) => {
     return char.charCodeAt(0) + ((acc << 5) - acc);
   }, 0);
 
