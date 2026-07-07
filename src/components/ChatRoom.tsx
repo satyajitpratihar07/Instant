@@ -214,7 +214,6 @@ export default function ChatRoom({
   const [joinCodeInput, setJoinCodeInput] = useState("");
   const [joinError, setJoinError] = useState<string | null>(null);
   const [joining, setJoining] = useState(false);
-  const [peerDisconnected, setPeerDisconnected] = useState(false);
   const wasConnectedRef = useRef(false);
 
   const activePeer = peers[0] || peer || { id: "awaiting", name: "Awaiting...", avatarSeed: "default", online: false };
@@ -252,18 +251,33 @@ export default function ChatRoom({
     };
   }, [showAddMember, sessionId]);
 
-  // Detect peer disconnect: show overlay when a connected peer goes offline
+  // Auto-redirect when peer disconnects — debounced to avoid flicker on brief blips
+  const disconnectTimerRef = useRef<NodeJS.Timeout | null>(null);
   useEffect(() => {
     const anyOnline = peers.length > 0 ? peers.some(p => p.online) : peerOnline;
     const anyPeer = peers.length > 0 || !!peer;
 
     if (anyPeer && anyOnline) {
+      // Peer is online — cancel any pending disconnect timer
       wasConnectedRef.current = true;
-      setPeerDisconnected(false);
+      if (disconnectTimerRef.current) {
+        clearTimeout(disconnectTimerRef.current);
+        disconnectTimerRef.current = null;
+      }
     } else if (wasConnectedRef.current && anyPeer && !anyOnline) {
-      // Was connected, now offline
-      setPeerDisconnected(true);
+      // Was connected, now offline — wait 2s then auto-leave (avoids flicker on brief blips)
+      if (!disconnectTimerRef.current) {
+        disconnectTimerRef.current = setTimeout(() => {
+          disconnectTimerRef.current = null;
+          onLeaveRoom();
+        }, 2000);
+      }
     }
+
+    return () => {
+      // Cleanup timer on unmount
+      if (disconnectTimerRef.current) clearTimeout(disconnectTimerRef.current);
+    };
   }, [peerOnline, peers, peer]);
 
   const handleCopyCode = () => {
@@ -503,50 +517,6 @@ export default function ChatRoom({
         </div>
       )}
 
-      {/* ── Peer Disconnected Full-Screen Overlay ── */}
-      {peerDisconnected && (
-        <div
-          id="peer-disconnected-overlay"
-          className="absolute inset-0 z-[70] flex flex-col items-center justify-center rounded-none md:rounded-3xl overflow-hidden"
-        >
-          {/* Dark blurred backdrop */}
-          <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md" />
-
-          {/* Content */}
-          <div className="relative z-10 flex flex-col items-center text-center px-8 animate-scale-up">
-            {/* Animated pulsing ring */}
-            <div className="relative mb-8">
-              <div className="w-24 h-24 rounded-full bg-rose-500/10 border-2 border-rose-500/30 flex items-center justify-center animate-pulse">
-                <div className="w-16 h-16 rounded-full bg-rose-500/20 border border-rose-500/40 flex items-center justify-center">
-                  <WifiOff className="w-8 h-8 text-rose-400" />
-                </div>
-              </div>
-              <div className="absolute inset-0 rounded-full border border-rose-500/20 scale-150 animate-ping" />
-            </div>
-
-            {/* Main text */}
-            <h2 className="text-3xl md:text-4xl font-black text-white tracking-tight mb-3">
-              You are{" "}
-              <span className="text-rose-400">Disconnected</span>
-            </h2>
-            <p className="text-slate-400 text-sm md:text-base max-w-xs leading-relaxed mb-8">
-              {peers.length > 1
-                ? "A member left the room. The session may have ended."
-                : `${activePeer.name} has left the chat.`}
-            </p>
-
-            {/* Leave button */}
-            <button
-              id="btn-disconnected-leave"
-              onClick={onLeaveRoom}
-              className="flex items-center gap-2 px-8 py-3.5 bg-rose-500 hover:bg-rose-400 text-white font-black rounded-2xl transition-all duration-200 hover:scale-[1.03] active:scale-95 cursor-pointer shadow-lg shadow-rose-500/30 text-sm uppercase tracking-wider"
-            >
-              <LogOut className="w-4 h-4" />
-              Return to Home
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Centered Group Join Requests Dialog Modal */}
       {joinRequests.length > 0 && (
