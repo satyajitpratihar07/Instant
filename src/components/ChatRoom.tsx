@@ -245,6 +245,13 @@ export default function ChatRoom({
     };
   }, [showAddMember, sessionId]);
 
+  // Automatically close the Add Member modal when a peer joins the chat room
+  useEffect(() => {
+    if (peers.length > 0) {
+      setShowAddMember(false);
+    }
+  }, [peers.length]);
+
   const handleCopyCode = () => {
     if (!inviteCode) return;
     navigator.clipboard.writeText(inviteCode);
