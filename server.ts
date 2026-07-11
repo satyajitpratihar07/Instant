@@ -7,19 +7,22 @@ import { randomBytes } from "crypto";
 import { fileURLToPath } from "url";
 import { initializeApp } from "firebase/app";
 import { getDatabase, ref, set, get, remove } from "firebase/database";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // --- Firebase Configuration ---
 const firebaseConfig = {
-  apiKey: "AIzaSyCgzmW06ymrvgPILMDrGxUKsJyC3amHY3w",
-  authDomain: "instant-f2b0b.firebaseapp.com",
-  databaseURL: "https://instant-f2b0b-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "instant-f2b0b",
-  storageBucket: "instant-f2b0b.firebasestorage.app",
-  messagingSenderId: "1028488215890",
-  appId: "1:1028488215890:web:1f2831c2474f52a953ce8b"
+  apiKey: process.env.VITE_FIREBASE_API_KEY,
+  authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN,
+  databaseURL: process.env.VITE_FIREBASE_DATABASE_URL,
+  projectId: process.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.VITE_FIREBASE_APP_ID
 };
 
 const firebaseApp = initializeApp(firebaseConfig);
