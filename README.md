@@ -19,9 +19,7 @@
   <img src="https://img.shields.io/github/languages/top/satyajitpratihar07/instant?style=for-the-badge">
   <img src="https://img.shields.io/github/stars/satyajitpratihar07/instant?style=for-the-badge">
 </p>
-
 ---
-
 ### 🌐 Live Website
 ### **https://instant07.vercel.app**
 </div>
@@ -35,9 +33,7 @@
 Simply generate a QR code or share a **6-digit invite code**, let another user scan or enter it, approve the request, and start chatting immediately.
 
 Designed with a **glassmorphism UI**, responsive mobile experience, real-time synchronization, and zero-setup pairing, InstantP2P delivers an effortless communication experience.
-
 ---
-
 # 🎯 Key Features
 
 ## ⚡ Instant Connection
