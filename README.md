@@ -23,7 +23,7 @@
 ---
 
 ### 🌐 Live Website
-### **https://instant-07.vercel.app**
+### **https://instant07.vercel.app**
 </div>
 
 ---
