@@ -4,6 +4,7 @@ export interface Session {
   name: string;
   connectedRoomId: string | null;
   lastActive?: number;
+  expiresAt?: number;
 }
 
 export interface Peer {
@@ -18,7 +19,9 @@ export interface FileAttachment {
   name: string;
   type: string;
   size: number;
+  url?: string;
 }
+
 
 export interface Message {
   id: string;

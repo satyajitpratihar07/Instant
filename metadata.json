@@ -1,6 +1,6 @@
 {
-  "name": "QR P2P Chat",
-  "description": "A real-time peer-to-peer instant chat and file sharing application paired instantly via QR code scanning.",
+  "name": "QR E2E Chat",
+  "description": "A real-time end-to-end instant chat and file sharing application paired instantly via QR code scanning.",
   "requestFramePermissions": ["camera"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

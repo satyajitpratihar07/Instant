@@ -13,10 +13,13 @@ export default function QrScanner({ onScanSuccess, onCancel, isDarkMode }: QrSca
   const [scanError, setScanError] = useState<string | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const [manualInput, setManualInput] = useState("");
+  const [scannerActive, setScannerActive] = useState(false);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    if (!scannerActive) return;
+
     let active = true;
 
     const startScanner = async () => {
@@ -99,7 +102,7 @@ export default function QrScanner({ onScanSuccess, onCancel, isDarkMode }: QrSca
       clearTimeout(timer);
       stopScanner();
     };
-  }, []);
+  }, [scannerActive]);
 
   const stopScanner = async () => {
     if (scannerRef.current && scannerRef.current.isScanning) {
@@ -168,7 +171,7 @@ export default function QrScanner({ onScanSuccess, onCancel, isDarkMode }: QrSca
   };
 
   return (
-    <div id="qr-scanner-container" className="flex flex-col items-center w-full max-w-lg mx-auto">
+    <div id="qr-scanner-container" className="flex flex-col items-center w-full max-w-[360px] mx-auto animate-scale-up">
       {/* Glow card shell */}
       <div
         id="scanner-card"
@@ -195,14 +198,32 @@ export default function QrScanner({ onScanSuccess, onCancel, isDarkMode }: QrSca
             className="w-full h-full overflow-hidden rounded-3xl [&_video]:object-cover [&_video]:w-full [&_video]:h-full"
           />
 
-          {hasPermission === null && (
+          {!scannerActive && (
+            <div id="scanner-inactive" className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-slate-400 text-center px-6 bg-slate-950 rounded-3xl z-10 animate-fade-in">
+              <Camera className="w-10 h-10 text-cyan-400/80 animate-pulse" />
+              <h4 className="font-bold text-white text-sm">Camera Scanner Inactive</h4>
+              <p className="text-[11px] leading-relaxed max-w-[280px]">
+                Click the button below to start the camera scanner and scan a QR code.
+              </p>
+              <button
+                type="button"
+                onClick={() => setScannerActive(true)}
+                className="mt-3 py-2 px-4 rounded-xl text-xs font-bold uppercase tracking-wider bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white transition-all cursor-pointer flex items-center gap-1.5 shadow-lg shadow-cyan-500/20 animate-pulse"
+              >
+                <Camera className="w-3.5 h-3.5" />
+                Active Scanner
+              </button>
+            </div>
+          )}
+
+          {scannerActive && hasPermission === null && (
             <div id="scanner-loading" className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-white bg-slate-950/90 rounded-3xl z-10">
               <Camera className="w-8 h-8 text-cyan-400 animate-pulse" />
               <span className="text-xs">Requesting camera access...</span>
             </div>
           )}
 
-          {hasPermission === false && (
+          {scannerActive && hasPermission === false && (
             <div id="scanner-denied" className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-slate-400 text-center px-6 bg-slate-950 rounded-3xl z-10 animate-fade-in">
               <AlertCircle className="w-10 h-10 text-rose-500 animate-bounce" />
               <h4 className="font-bold text-white text-sm">Camera Access Blocked</h4>
@@ -220,7 +241,7 @@ export default function QrScanner({ onScanSuccess, onCancel, isDarkMode }: QrSca
             </div>
           )}
 
-          {hasPermission && (
+          {scannerActive && hasPermission && (
             <div id="scanning-laser-line" className="absolute left-0 right-0 h-0.5 bg-cyan-400 opacity-80 shadow-[0_0_12px_#22d3ee] top-1/2 -translate-y-1/2 animate-bounce pointer-events-none z-20" />
           )}
         </div>
@@ -245,7 +266,7 @@ export default function QrScanner({ onScanSuccess, onCancel, isDarkMode }: QrSca
 
           <div className="flex items-center justify-between mb-2">
             <span className={`text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? "text-slate-400" : "text-slate-600"}`}>
-              Or Pair Manually
+              Enter Invite Code
             </span>
             <button
               type="button"
@@ -262,7 +283,7 @@ export default function QrScanner({ onScanSuccess, onCancel, isDarkMode }: QrSca
               <input
                 id="manual-input"
                 type="text"
-                placeholder="Paste session invite URL or ID here..."
+                placeholder="Enter 6-digit code or paste URL..."
                 value={manualInput}
                 onChange={(e) => setManualInput(e.target.value)}
                 className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-mono outline-none border transition-all ${isDarkMode

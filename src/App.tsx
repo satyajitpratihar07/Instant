@@ -38,15 +38,15 @@ function generateUUID(): string {
 }
 
 function generateRandomName(): string {
-  const adjectives = ["Secure", "Crypto", "Swift", "Silent", "Shadow", "Alpha", "Zenith", "Quantum", "Cipher", "Vortex"];
-  const nouns = ["Peer", "Node", "Link", "Ghost", "Falcon", "Nova", "Pulse", "Beacon", "Matrix", "Cipher"];
-  return adjectives[Math.floor(Math.random() * adjectives.length)] + " " + nouns[Math.floor(Math.random() * nouns.length)];
+  return "User";
 }
 
 export default function App() {
   // --- Core State ---
   const [session, setSession] = useState<Session | null>(null);
-  const [view, setView] = useState<"home" | "generate" | "scan" | "chat">("home");
+  const [view, setView] = useState<"home" | "generate" | "scan" | "chat">(() => {
+    return localStorage.getItem("qr_e2e_connected_room_id") ? "chat" : "home";
+  });
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [toasts, setToasts] = useState<Toast[]>([]);
 
@@ -61,11 +61,29 @@ export default function App() {
   const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([]);
   const [waitingForGroupApprove, setWaitingForGroupApprove] = useState<string | null>(null);
   const [roomMemberName, setRoomMemberName] = useState<string>("");
-  const [keepAlive5h, setKeepAlive5h] = useState<boolean>(() => localStorage.getItem("qr_p2p_keep_alive_5h") === "true");
+  const [keepAlive5h, setKeepAlive5h] = useState<boolean>(() => localStorage.getItem("qr_e2e_keep_alive_5h") === "true");
+  const [showHostOfflineModal, setShowHostOfflineModal] = useState<boolean>(false);
 
   useEffect(() => {
-    localStorage.setItem("qr_p2p_keep_alive_5h", keepAlive5h ? "true" : "false");
+    localStorage.setItem("qr_e2e_keep_alive_5h", keepAlive5h ? "true" : "false");
   }, [keepAlive5h]);
+
+  // --- Sync connectedRoomId to localStorage to prevent home screen flash on reload ---
+  useEffect(() => {
+    if (session?.connectedRoomId) {
+      localStorage.setItem("qr_e2e_connected_room_id", session.connectedRoomId);
+    } else if (session) {
+      localStorage.removeItem("qr_e2e_connected_room_id");
+    }
+  }, [session?.connectedRoomId, session]);
+
+  // --- Manage session onDisconnect based on keepAlive5h toggle ---
+  useEffect(() => {
+    if (!session?.id) return;
+    const sessionRef = ref(db, `sessions/${session.id}`);
+    // Always cancel onDisconnect to prevent session removal on refresh or tab switch
+    onDisconnect(sessionRef).cancel();
+  }, [session?.id]);
 
   const [incomingRequest, setIncomingRequest] = useState<{
     id: string;
@@ -80,6 +98,8 @@ export default function App() {
   // --- Connection Refs ---
   const autoConnectRef = useRef<string | null>(null);
   const isHostRef = useRef<boolean>(false);
+  const isLeavingRef = useRef<boolean>(false);
+  const peersCountRef = useRef<number>(0);
 
   // --- Custom Toast Dispatcher ---
   const addToast = (message: string, type: "success" | "error" | "info" = "info") => {
@@ -107,59 +127,7 @@ export default function App() {
     return () => clearInterval(interval);
   }, [session?.id]);
 
-  // --- Instant cleanup on refresh/unload/close page via keepalive fetch ---
-  useEffect(() => {
-    if (!session?.id) return;
-
-    const handleUnload = () => {
-      // If 5-hour keep alive toggle is ON, do NOT remove data or log out!
-      const keepAlive = localStorage.getItem("qr_p2p_keep_alive_5h") === "true";
-      if (keepAlive) return;
-
-      // Clear localStorage session to ensure complete logout on page refresh
-      localStorage.removeItem("qr_p2p_session_id");
-
-      const dbUrl = "https://instant-f2b0b-default-rtdb.asia-southeast1.firebasedatabase.app";
-      
-      // 1. Delete user session node instantly
-      fetch(`${dbUrl}/sessions/${session.id}.json`, {
-        method: "DELETE",
-        keepalive: true
-      });
-
-      if (session.connectedRoomId) {
-        const roomId = session.connectedRoomId;
-
-        // 2. Remove member node instantly
-        fetch(`${dbUrl}/rooms/${roomId}/members/${session.id}.json`, {
-          method: "DELETE",
-          keepalive: true
-        });
-
-        // 3. Remove typing node instantly
-        fetch(`${dbUrl}/rooms/${roomId}/typing/${session.id}.json`, {
-          method: "DELETE",
-          keepalive: true
-        });
-
-        // 4. If current user is host, delete the entire room instantly
-        if (isHostRef.current) {
-          fetch(`${dbUrl}/rooms/${roomId}.json`, {
-            method: "DELETE",
-            keepalive: true
-          });
-        }
-      }
-    };
-
-    window.addEventListener("beforeunload", handleUnload);
-    window.addEventListener("pagehide", handleUnload); // for safari/mobile compatibility
-    
-    return () => {
-      window.removeEventListener("beforeunload", handleUnload);
-      window.removeEventListener("pagehide", handleUnload);
-    };
-  }, [session?.id, session?.connectedRoomId]);
+  // --- Instant cleanup on refresh/unload/close page removed to keep connection on refresh ---
 
   // --- Real-time Session listener (incoming requests & pairing status) ---
   useEffect(() => {
@@ -172,7 +140,11 @@ export default function App() {
 
       // Handle connectedRoomId changes
       if (data.connectedRoomId && data.connectedRoomId !== session.connectedRoomId) {
+        if (isLeavingRef.current) return;
         setSession((prev) => prev ? { ...prev, connectedRoomId: data.connectedRoomId } : null);
+        setWaitingForResponse(null);
+        setWaitingForGroupApprove(null);
+        setIsConnecting(false);
         setView("chat");
       }
 
@@ -203,6 +175,8 @@ export default function App() {
           setWaitingForGroupApprove(null);
           setIsConnecting(false);
           setIncomingRequest(null);
+          isHostRef.current = false; // Guest joined, not host
+          setView("chat");
           addToast("Successfully joined chat room!", "success");
           update(mySessionRef, { pairingStatus: null });
         }
@@ -211,6 +185,49 @@ export default function App() {
 
     return () => unsubscribeMySession();
   }, [session?.id, session?.connectedRoomId]);
+
+  const [viewportHeight, setViewportHeight] = useState(typeof window !== "undefined" ? window.innerHeight : 800);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const updateHeight = () => {
+      const height = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+      setViewportHeight(height);
+      if (view === "chat" && (window.scrollY !== 0 || window.scrollX !== 0)) {
+        window.scrollTo(0, 0);
+      }
+    };
+
+    window.visualViewport?.addEventListener("resize", updateHeight);
+    window.visualViewport?.addEventListener("scroll", updateHeight);
+    window.addEventListener("resize", updateHeight);
+    window.addEventListener("scroll", updateHeight);
+
+    updateHeight();
+
+    return () => {
+      window.visualViewport?.removeEventListener("resize", updateHeight);
+      window.visualViewport?.removeEventListener("scroll", updateHeight);
+      window.removeEventListener("resize", updateHeight);
+      window.removeEventListener("scroll", updateHeight);
+    };
+  }, [view]);
+
+  // Lock body/html scrolling during active chat session to prevent browser drag scrolling
+  useEffect(() => {
+    if (view === "chat") {
+      document.body.style.overflow = "hidden";
+      document.documentElement.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "auto";
+      document.documentElement.style.overflow = "auto";
+    }
+    return () => {
+      document.body.style.overflow = "auto";
+      document.documentElement.style.overflow = "auto";
+    };
+  }, [view]);
 
   // --- Real-time Chat Room & Peer sync listener ---
   useEffect(() => {
@@ -223,6 +240,7 @@ export default function App() {
       return;
     }
 
+    isLeavingRef.current = false; // Reset leaving flag on entry to room
     const roomId = session.connectedRoomId;
     const roomRef = ref(db, `rooms/${roomId}`);
 
@@ -235,25 +253,39 @@ export default function App() {
       }
     }, 12000);
 
-    const roomUnsubscribe = onValue(roomRef, (snapshot) => {
+    let roomUnsubscribe: () => void;
+
+    roomUnsubscribe = onValue(roomRef, (snapshot) => {
       if (!snapshot.exists()) {
+        // Unsubscribe immediately to prevent subsequent callback triggers
+        if (roomUnsubscribe) roomUnsubscribe();
+        
         // Room was closed/deleted
+        if (isLeavingRef.current) return;
+        const wasInChat = session?.connectedRoomId !== null;
+
         setPeer(null);
         setPeers([]);
         setPeerOnline(false);
         setPeerTyping(false);
         setMessages([]);
-        setSession((prev) => prev ? { ...prev, connectedRoomId: null } : null);
-        setView("home");
-        addToast("Active room was closed or peer left.", "info");
+
+        if (wasInChat) {
+          update(ref(db, `sessions/${session.id}`), { connectedRoomId: null });
+          setSession((prev) => prev ? { ...prev, connectedRoomId: null } : null);
+          setView("home");
+          setShowHostOfflineModal(true);
+        }
         return;
       }
 
       const roomData = snapshot.val();
       const membersMap = roomData.members || {};
+      const isHost = roomData.creatorId === session.id || (!roomData.creatorId && Object.keys(membersMap)[0] === session.id);
 
       // Security check: Kick out of chat room if user is not an approved member
       if (!membersMap[session.id]) {
+        if (isLeavingRef.current) return;
         setPeer(null);
         setPeers([]);
         setPeerOnline(false);
@@ -320,23 +352,23 @@ export default function App() {
           online: Date.now() - (val.lastActive || 0) < 25000
         }));
       setPeers(peersList);
+      peersCountRef.current = peersList.length;
 
       // Register disconnect cleanup handlers
       const myMemberRef = ref(db, `rooms/${roomId}/members/${session.id}`);
       const myTypingRef = ref(db, `rooms/${roomId}/typing/${session.id}`);
       const roomNodeRef = ref(db, `rooms/${roomId}`);
 
-      // If 5-hour keep alive toggle is ON, cancel disconnect cleanup handlers so data is preserved
       if (keepAlive5h) {
+        // If keep alive is enabled, do NOT set onDisconnect remove handlers
         onDisconnect(myMemberRef).cancel();
         onDisconnect(myTypingRef).cancel();
         onDisconnect(roomNodeRef).cancel();
       } else {
-        // Enforce immediate disconnect cleanup
-        onDisconnect(myMemberRef).remove();
+        // If keep alive is disabled, mark ourselves offline on disconnect instead of removing
+        onDisconnect(ref(db, `rooms/${roomId}/members/${session.id}/lastActive`)).set(0);
         onDisconnect(myTypingRef).remove();
-        // If ANY user disconnects (host or guest), delete the entire room node to automatically end session for everyone
-        onDisconnect(roomNodeRef).remove();
+        onDisconnect(roomNodeRef).cancel();
       }
 
       // Sync my name in this room
@@ -344,7 +376,6 @@ export default function App() {
       setRoomMemberName(myMemberName);
 
       // If the current user is the host/creator, store it in ref for unload keepalive checks
-      const isHost = roomData.creatorId === session.id || (!roomData.creatorId && Object.keys(membersMap)[0] === session.id);
       isHostRef.current = isHost;
 
       // Set fallback peer for 1-to-1 visual backward compatibility
@@ -371,9 +402,11 @@ export default function App() {
 
     return () => {
       clearInterval(heartbeatInterval);
-      roomUnsubscribe();
+      if (roomUnsubscribe) {
+        roomUnsubscribe();
+      }
 
-      // Cancel onDisconnect handlers for this room session
+      // Clean up disconnect handlers
       const myMemberRef = ref(db, `rooms/${roomId}/members/${session.id}`);
       const myTypingRef = ref(db, `rooms/${roomId}/typing/${session.id}`);
       const roomNodeRef = ref(db, `rooms/${roomId}`);
@@ -381,12 +414,19 @@ export default function App() {
       onDisconnect(myTypingRef).cancel();
       onDisconnect(roomNodeRef).cancel();
     };
-  }, [session?.connectedRoomId, session?.id]);
+  }, [session?.connectedRoomId, session?.id, keepAlive5h]);
+
+  // --- Grace period for offline peers (Disabled to prevent auto-disconnect) ---
+  useEffect(() => {
+    // Disabled auto-disconnect so that users stay in the room until they manually disconnect.
+    // This allows the host/peers to refresh or close their tab temporarily without breaking the connection.
+    return;
+  }, [view, peers.length, peerOnline, keepAlive5h, session?.connectedRoomId]);
 
   // --- Handshake & Register Session ---
   useEffect(() => {
     // 1. Theme restoration
-    const cachedTheme = localStorage.getItem("qr_p2p_dark_theme");
+    const cachedTheme = localStorage.getItem("qr_e2e_dark_theme");
     if (cachedTheme !== null) {
       setIsDarkMode(cachedTheme === "true");
     }
@@ -400,7 +440,7 @@ export default function App() {
     }
 
     // 3. Register or restore session
-    const savedSessionId = localStorage.getItem("qr_p2p_session_id");
+    const savedSessionId = localStorage.getItem("qr_e2e_session_id");
 
     const initializeSession = async () => {
       // --- Expired Session & Room cleanup ---
@@ -446,15 +486,17 @@ export default function App() {
       if (!activeSession) {
         const newId = savedSessionId && /^[0-9a-f-]{36}$/i.test(savedSessionId) ? savedSessionId : generateUUID();
         // Check keepAlive5h directly from localStorage for correctness during initialization
-        const isKeepAlive = localStorage.getItem("qr_p2p_keep_alive_5h") === "true";
+        const isKeepAlive = localStorage.getItem("qr_e2e_keep_alive_5h") === "true";
         activeSession = {
           id: newId,
           avatarSeed: Math.random().toString(36).substring(7),
           name: generateRandomName(),
           connectedRoomId: null,
-          lastActive: Date.now(),
-          expiresAt: isKeepAlive ? Date.now() + 5 * 60 * 60 * 1000 : undefined
-        } as any;
+          lastActive: Date.now()
+        };
+        if (isKeepAlive) {
+          activeSession.expiresAt = Date.now() + 5 * 60 * 60 * 1000;
+        }
         try {
           await set(ref(db, `sessions/${newId}`), activeSession);
         } catch (e) {
@@ -465,11 +507,34 @@ export default function App() {
       // Cleanup any expired database data
       cleanupExpiredData();
 
-      // Clean up session node on disconnect/refresh
-      onDisconnect(ref(db, `sessions/${activeSession.id}`)).remove();
+      // Always cancel disconnect handler to prevent session deletion on refresh/tab switch
+      onDisconnect(ref(db, `sessions/${activeSession.id}`)).cancel();
+
+      if (activeSession.connectedRoomId) {
+        const roomId = activeSession.connectedRoomId;
+        try {
+          const roomSnap = await get(ref(db, `rooms/${roomId}`));
+          if (roomSnap.exists()) {
+            // Re-insert or update our member status to be online
+            await update(ref(db, `rooms/${roomId}/members/${activeSession.id}`), {
+              id: activeSession.id,
+              name: activeSession.name,
+              avatarSeed: activeSession.avatarSeed,
+              joinedAt: Date.now(),
+              lastActive: Date.now()
+            });
+            setView("chat");
+          } else {
+            activeSession.connectedRoomId = null;
+            await update(ref(db, `sessions/${activeSession.id}`), { connectedRoomId: null });
+          }
+        } catch (err) {
+          console.error("Failed to recover room members status:", err);
+        }
+      }
 
       setSession(activeSession);
-      localStorage.setItem("qr_p2p_session_id", activeSession.id);
+      localStorage.setItem("qr_e2e_session_id", activeSession.id);
 
       // Auto connect if parameter exists
       if (autoConnectRef.current) {
@@ -487,6 +552,7 @@ export default function App() {
   // --- Create Chat Room Hook (Add Member Flow) ---
   const handleCreateRoom = async () => {
     if (!session) return;
+    isLeavingRef.current = false; // Reset leaving flag to allow connection state changes
 
     const newRoomId = generateUUID();
     try {
@@ -497,7 +563,7 @@ export default function App() {
         members: {
           [session.id]: {
             id: session.id,
-            name: "User 1",
+            name: "Host",
             avatarSeed: session.avatarSeed,
             joinedAt: Date.now(),
             lastActive: Date.now()
@@ -509,11 +575,13 @@ export default function App() {
       }
       await set(ref(db, `rooms/${newRoomId}`), roomData);
 
+      isHostRef.current = true; // Mark as host
       await update(ref(db, `sessions/${session.id}`), {
-        connectedRoomId: newRoomId
+        connectedRoomId: newRoomId,
+        name: "Host"
       });
 
-      setSession((prev) => prev ? { ...prev, connectedRoomId: newRoomId } : null);
+      setSession((prev) => prev ? { ...prev, connectedRoomId: newRoomId, name: "Host" } : null);
       setAutoShowInvite(true); // Open invite modal automatically in chat room
       setView("chat");
       addToast("Chat room created! Ready to invite members.", "success");
@@ -525,6 +593,7 @@ export default function App() {
 
   // --- Dispatch Connection Request ---
   const requestConnection = async (targetId: string, currentSession = session) => {
+    isLeavingRef.current = false; // Reset leaving flag to allow connection state changes
     const activeSess = currentSession || session;
     if (!activeSess) return;
 
@@ -549,6 +618,7 @@ export default function App() {
             });
 
             setWaitingForGroupApprove(roomId);
+            setView("home"); // Redirect to home so they are not stuck on the scanner view
             addToast("Join request sent. Awaiting approval...", "info");
           } else {
             addToast("This invite code is expired or invalid.", "error");
@@ -587,6 +657,7 @@ export default function App() {
           });
 
           setWaitingForGroupApprove(roomId);
+          setView("home"); // Redirect to home so they are not stuck on the scanner view
           addToast("Join request sent. Awaiting approval...", "info");
         } else {
           addToast("This user is not currently in an active chat room.", "error");
@@ -623,14 +694,14 @@ export default function App() {
           members: {
             [session.id]: {
               id: session.id,
-              name: session.name,
+              name: "Host",
               avatarSeed: session.avatarSeed,
               joinedAt: Date.now(),
               lastActive: Date.now()
             },
             [senderId]: {
               id: senderId,
-              name: incomingRequest.name,
+              name: "User 1",
               avatarSeed: incomingRequest.avatarSeed,
               joinedAt: Date.now(),
               lastActive: Date.now()
@@ -641,12 +712,17 @@ export default function App() {
 
         await update(ref(db, `sessions/${senderId}`), {
           connectedRoomId: newRoomId,
+          name: "User 1",
           pairingStatus: { type: "accepted", roomId: newRoomId }
         });
 
+        isHostRef.current = true; // Mark as host
         await update(ref(db, `sessions/${session.id}`), {
-          connectedRoomId: newRoomId
+          connectedRoomId: newRoomId,
+          name: "Host"
         });
+        setSession((prev) => prev ? { ...prev, connectedRoomId: newRoomId, name: "Host" } : null);
+        setView("chat");
       }
     } catch (e) {
       console.error("Responding to connection failed:", e);
@@ -669,8 +745,8 @@ export default function App() {
         // Fetch current members to determine the next User index
         const roomSnap = await get(ref(db, `rooms/${roomId}/members`));
         const members = roomSnap.exists() ? roomSnap.val() : {};
-        const index = Object.keys(members).length + 1;
-        const assignedName = `User ${index}`;
+        const guestCount = Object.values(members).filter((m: any) => m.name !== "Host").length;
+        const assignedName = `User ${guestCount + 1}`;
 
         // 2. Add to members list of the room
         await set(ref(db, `rooms/${roomId}/members/${senderId}`), {
@@ -681,9 +757,10 @@ export default function App() {
           lastActive: Date.now()
         });
 
-        // 3. Update joining session connectedRoomId and pairingStatus
+        // 3. Update joining session connectedRoomId, name, and pairingStatus
         await update(ref(db, `sessions/${senderId}`), {
           connectedRoomId: roomId,
+          name: assignedName,
           pairingStatus: { type: "accepted", roomId }
         });
 
@@ -716,39 +793,58 @@ export default function App() {
   };
 
   // --- Disconnect Active Chat Room ---
-  const leaveRoom = async () => {
+  const leaveRoom = async (showToast = true) => {
     if (!session?.connectedRoomId) return;
     const roomId = session.connectedRoomId;
+    isLeavingRef.current = true;
+    const isHost = isHostRef.current;
+    isHostRef.current = false; // Reset host status
 
+    // 1. Perform local state updates immediately so the UI is responsive and never gets stuck
+    setSession((prev) => prev ? { ...prev, connectedRoomId: null, name: "User" } : null);
+    setPeers([]);
+    setMessages([]);
+    setView("home");
+    localStorage.removeItem("qr_e2e_connected_room_id");
+    if (showToast === true || (showToast && typeof showToast !== "boolean")) {
+      addToast("You left the chat room.", "info");
+    }
+
+    // 2. Perform database cleanup asynchronously in the background
     try {
-      // 1. Remove myself from room members list
-      await remove(ref(db, `rooms/${roomId}/members/${session.id}`));
+      update(ref(db, `sessions/${session.id}`), { connectedRoomId: null, name: "User" });
 
-      // 2. Clear typing indicator if active
-      await remove(ref(db, `rooms/${roomId}/typing/${session.id}`));
+      if (isHost) {
+        // Delete invite codes linked to this room
+        try {
+          const codesSnap = await get(ref(db, "codes"));
+          if (codesSnap.exists()) {
+            const codes = codesSnap.val();
+            Object.entries(codes).forEach(([code, data]: [string, any]) => {
+              if (data?.roomId === roomId) {
+                remove(ref(db, `codes/${code}`));
+              }
+            });
+          }
+        } catch (err) {
+          console.error("Failed to clean up room codes:", err);
+        }
+        remove(ref(db, `rooms/${roomId}`));
+      } else {
+        remove(ref(db, `rooms/${roomId}/members/${session.id}`));
+        remove(ref(db, `rooms/${roomId}/typing/${session.id}`));
 
-      // 3. Clear my session connectedRoomId
-      await update(ref(db, `sessions/${session.id}`), { connectedRoomId: null });
-
-      // 4. If no members left in the room, clean it up from database
-      const roomSnap = await get(ref(db, `rooms/${roomId}`));
-      if (roomSnap.exists()) {
-        const roomData = roomSnap.val();
-        const remainingMembers = Object.keys(roomData.members || {});
-        if (remainingMembers.length === 0) {
-          await remove(ref(db, `rooms/${roomId}`));
+        const roomSnap = await get(ref(db, `rooms/${roomId}`));
+        if (roomSnap.exists()) {
+          const roomData = roomSnap.val();
+          const remainingMembers = Object.keys(roomData.members || {});
+          if (remainingMembers.length === 0) {
+            remove(ref(db, `rooms/${roomId}`));
+          }
         }
       }
-
-      setSession((prev) => prev ? { ...prev, connectedRoomId: null } : null);
-      setPeers([]);
-      setMessages([]);
-      setView("home");
-      addToast("You left the chat room.", "info");
     } catch (e) {
-      console.error("Failed to leave room:", e);
-      setSession((prev) => prev ? { ...prev, connectedRoomId: null } : null);
-      setView("home");
+      console.error("Background database cleanup failed:", e);
     }
   };
 
@@ -780,6 +876,14 @@ export default function App() {
     const roomId = session.connectedRoomId;
 
     try {
+      // Fetch the message first to check if there is an associated file
+      const msgSnap = await get(ref(db, `rooms/${roomId}/messages/${messageId}`));
+      if (msgSnap.exists()) {
+        const msg = msgSnap.val();
+        if (msg.file?.id) {
+          await remove(ref(db, `rooms/${roomId}/files/${msg.file.id}`));
+        }
+      }
       await remove(ref(db, `rooms/${roomId}/messages/${messageId}`));
     } catch (e) {
       console.error("Failed to delete message:", e);
@@ -800,23 +904,26 @@ export default function App() {
   // --- Refresh QR / Reset Profile ---
   const handleRefreshSession = async () => {
     if (session?.connectedRoomId) {
-      await leaveRoom();
+      await leaveRoom(false);
     }
 
-    localStorage.removeItem("qr_p2p_session_id");
+    localStorage.removeItem("qr_e2e_session_id");
     const newId = generateUUID();
-    const newSession = {
+    const newSession: Session = {
       id: newId,
       avatarSeed: Math.random().toString(36).substring(7),
       name: generateRandomName(),
       connectedRoomId: null,
       lastActive: Date.now()
     };
+    if (keepAlive5h) {
+      newSession.expiresAt = Date.now() + 5 * 60 * 60 * 1000;
+    }
 
     try {
       await set(ref(db, `sessions/${newId}`), newSession);
       setSession(newSession);
-      localStorage.setItem("qr_p2p_session_id", newId);
+      localStorage.setItem("qr_e2e_session_id", newId);
       addToast("Secure session refreshed successfully!", "success");
     } catch (e) {
       console.error("Failed to refresh session:", e);
@@ -827,14 +934,16 @@ export default function App() {
   const handleToggleTheme = () => {
     const nextVal = !isDarkMode;
     setIsDarkMode(nextVal);
-    localStorage.setItem("qr_p2p_dark_theme", String(nextVal));
+    localStorage.setItem("qr_e2e_dark_theme", String(nextVal));
   };
 
   return (
     <div
       id="app-theme-root"
-      className={`min-h-screen font-sans transition-colors duration-300 ${isDarkMode ? "bg-sleek-body text-slate-100" : "bg-slate-50 text-slate-800"
-        }`}
+      style={view === "chat" ? { height: `${viewportHeight}px` } : undefined}
+      className={`font-sans transition-colors duration-300 ${
+        isDarkMode ? "bg-sleek-body text-slate-100" : "bg-slate-50 text-slate-800"
+      } ${view === "chat" ? "fixed left-0 top-0 w-full overflow-hidden" : "min-h-[100dvh]"}`}
     >
       {/* Background Decorative Tech Grids */}
       <div id="grid-background" className="fixed inset-0 pointer-events-none overflow-hidden z-0">
@@ -853,11 +962,18 @@ export default function App() {
       </div>
 
       {/* Main Container Wrapper */}
-      <div id="main-content-scroller" className="relative z-10 flex flex-col min-h-screen justify-between max-w-7xl mx-auto px-4 md:px-8">
+      <div
+        id="main-content-scroller"
+        className={`relative z-10 flex flex-col max-w-7xl mx-auto px-4 md:px-8 ${
+          view === "chat" ? "h-full py-0 md:py-3 justify-between overflow-hidden" : "min-h-[100dvh] justify-between pb-8 md:pb-12"
+        }`}
+      >
         {/* Navigation / Control Header */}
         <header
           id="global-nav-bar"
-          className={`flex items-center justify-between py-4 px-6 my-4 rounded-2xl border select-none transition-colors duration-300 ${isDarkMode
+          className={`sticky top-0 z-40 flex items-center justify-between py-4 px-6 my-4 rounded-2xl border select-none transition-colors duration-300 ${
+            view === "chat" ? "hidden md:flex" : "flex"
+          } ${isDarkMode
             ? "bg-sleek-card border-white/5 shadow-lg shadow-black/35"
             : "bg-white border-slate-200/80 shadow-md"
             }`}
@@ -872,7 +988,7 @@ export default function App() {
             <div className="text-left">
               <h1 className="text-xl font-bold tracking-tight leading-tight">
                 <span className={isDarkMode ? "bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400" : "text-slate-900"}>
-                  InstantP2P
+                  Instant 2.0
                 </span>
               </h1>
               <p className={`text-[10px] font-medium uppercase tracking-widest ${isDarkMode ? "text-slate-500" : "text-slate-400"}`}>
@@ -903,7 +1019,14 @@ export default function App() {
         </header>
 
         {/* Core Router Body */}
-        <main id="view-renderer-canvas" className="flex-1 flex flex-col justify-center py-8">
+        <main
+          id="view-renderer-canvas"
+          className={`flex-1 flex flex-col min-h-0 ${
+            view === "chat"
+              ? "justify-start py-0 md:py-4 overflow-hidden"
+              : "justify-center py-8"
+          }`}
+        >
           {view === "home" && (
             <div id="hero-view" className="text-center max-w-xl mx-auto space-y-10 animate-slide-up">
               <div id="hero-badge" className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
@@ -916,8 +1039,14 @@ export default function App() {
                   Connect Instantly with <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-500">Secure QR Codes</span>
                 </h2>
                 <p className="text-sm md:text-base text-slate-400 leading-relaxed max-w-lg mx-auto">
-                  A modern, secure P2P platform for sharing messages and files instantly. Zero logging, zero sign-ups, and absolute privacy.
+                  A modern, secure E2E platform for sharing messages and files instantly. Zero logging, zero sign-ups, and absolute privacy.
                 </p>
+              </div>
+
+              {/* Development Notice Banner */}
+              <div id="dev-notice-banner" className="max-w-md mx-auto p-4 rounded-2xl border text-sm font-semibold flex items-center justify-center gap-2.5 shadow-sm transition-colors duration-300 bg-amber-500/10 border-amber-500/20 text-amber-500">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>Notice: Some features are under active development.</span>
               </div>
 
               {/* Centered Large Action Buttons */}
@@ -970,8 +1099,17 @@ export default function App() {
             </div>
           )}
 
+          {view === "chat" && !session && (
+            <div className="flex-grow flex flex-col items-center justify-center py-20 space-y-4">
+              <div className="w-10 h-10 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin"></div>
+              <p className={`text-sm font-semibold tracking-wider ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>
+                Re-connecting to secure chat...
+              </p>
+            </div>
+          )}
+
           {view === "chat" && session && (
-            <div id="chat-view" className="animate-scale-up w-full h-full max-w-5xl mx-auto -mx-4 md:mx-auto">
+            <div id="chat-view" className="animate-fade-in w-full h-full max-w-[95%] xl:max-w-[1400px] mx-auto -mx-4 md:mx-auto overflow-hidden flex flex-col flex-1 min-h-0">
               <ChatRoom
                 roomId={session.connectedRoomId || ""}
                 sessionId={session.id}
@@ -994,26 +1132,11 @@ export default function App() {
                 autoShowInvite={autoShowInvite}
                 keepAlive5h={keepAlive5h}
                 onToggleKeepAlive={() => setKeepAlive5h((prev) => !prev)}
+                isHost={isHostRef.current}
               />
             </div>
           )}
         </main>
-
-        {/* Global Footer — minimal credit */}
-        <footer
-          id="global-footer"
-          className={`py-3 px-6 mt-auto select-none transition-colors duration-300 flex items-center justify-center ${isDarkMode ? "text-slate-600" : "text-slate-400"}`}
-        >
-          <p className="text-[10px] font-bold uppercase tracking-[0.25em]">
-            <span className={`px-2.5 py-1 rounded-lg font-black ${
-              isDarkMode
-                ? "text-cyan-400 bg-cyan-500/10 border border-cyan-500/20"
-                : "text-indigo-600 bg-indigo-500/10 border border-indigo-500/20"
-            }`}>
-              Developed by Satyajit Pratihar
-            </span>
-          </p>
-        </footer>
       </div>
 
       {/* --- Overlay 1: Incoming Invitation Request Card --- */}
@@ -1095,28 +1218,57 @@ export default function App() {
           </div>
         </div>
       )}
-      <div id="toast-banners-holder" className="fixed bottom-6 right-6 z-50 flex flex-col gap-2.5 max-w-sm pointer-events-none select-none">
+      {/* Host Offline Alert Modal */}
+      {showHostOfflineModal && (
+        <div id="host-offline-modal-backdrop" className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div
+            id="host-offline-modal-card"
+            className={`w-full max-w-[380px] p-6 rounded-3xl border shadow-2xl text-center animate-scale-up backdrop-blur-md ${
+              isDarkMode ? "bg-slate-900/95 border-rose-500/30 text-white" : "bg-white/95 border-slate-200 text-slate-800"
+            }`}
+          >
+            <div className="w-16 h-16 rounded-full bg-rose-500/10 text-rose-500 flex items-center justify-center mx-auto mb-4 border border-rose-500/20 shadow-inner">
+              <AlertCircle className="w-8 h-8 animate-pulse" />
+            </div>
+            <h3 className="text-xl font-black tracking-tight mb-2 uppercase">
+              Host Now Offline
+            </h3>
+            <p className={`text-xs mb-6 leading-relaxed ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>
+              The chat room host has disconnected. All messages and files have been permanently deleted from the database.
+            </p>
+            <button
+              id="btn-close-host-offline"
+              onClick={() => setShowHostOfflineModal(false)}
+              className="w-full py-3 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-xl transition-all hover:scale-[1.02] cursor-pointer text-center text-xs uppercase tracking-wider shadow-lg shadow-rose-600/15"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div id="toast-banners-holder" className="fixed top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 md:top-6 md:bottom-auto md:left-1/2 md:-translate-x-1/2 md:-translate-y-0 z-[100] flex flex-col items-center gap-2.5 w-[calc(100%-2rem)] max-w-xs md:max-w-sm pointer-events-none select-none">
         {toasts.map((toast) => (
           <div
             id={`toast-${toast.id}`}
             key={toast.id}
-            className={`p-3.5 rounded-2xl shadow-xl flex items-center gap-3 border pointer-events-auto animate-slide-up text-xs font-semibold ${toast.type === "success"
-              ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+            className={`p-4 rounded-2xl shadow-2xl flex items-center gap-3 border pointer-events-auto animate-scale-up text-xs md:text-sm font-semibold max-w-full ${toast.type === "success"
+              ? "bg-[#061c12]/95 border-emerald-400/80 text-emerald-300 shadow-[0_0_20px_rgba(16,185,129,0.35)] backdrop-blur-md"
               : toast.type === "error"
-                ? "bg-rose-500/10 text-rose-400 border-rose-500/20"
+                ? "bg-[#1f090d]/95 border-rose-500/80 text-rose-300 shadow-[0_0_20px_rgba(244,63,94,0.35)] backdrop-blur-md"
                 : isDarkMode
-                  ? "bg-slate-900 border-slate-800 text-slate-100"
-                  : "bg-white border-slate-200 text-slate-700"
+                  ? "bg-[#090b10]/95 border-cyan-500/40 text-cyan-300 shadow-[0_0_20px_rgba(6,182,212,0.25)] backdrop-blur-md"
+                  : "bg-white/95 border-slate-200 text-slate-700 backdrop-blur-md shadow-slate-200/50"
               }`}
           >
             {toast.type === "success" ? (
-              <Check className="w-4 h-4 shrink-0" />
+              <Check className="w-4 h-4 shrink-0 text-emerald-400" />
             ) : toast.type === "error" ? (
-              <AlertCircle className="w-4 h-4 shrink-0" />
+              <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
             ) : (
-              <Bell className="w-4 h-4 shrink-0" />
+              <Bell className="w-4 h-4 shrink-0 text-cyan-400" />
             )}
-            <span className="text-left flex-1">{toast.message}</span>
+            <span className="text-left flex-1 break-words">{toast.message}</span>
           </div>
         ))}
       </div>

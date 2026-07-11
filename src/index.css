@@ -67,4 +67,141 @@
   border-color: rgba(255, 255, 255, 0.1) !important;
 }
 
+/* Animated Neon RGB border/shadow effect */
+@keyframes neon-rgb-border {
+  0%, 100% {
+    border-color: #ff007f;
+    box-shadow: 0 0 12px rgba(255, 0, 127, 0.4), inset 0 0 4px rgba(255, 0, 127, 0.2);
+  }
+  16% {
+    border-color: #ff5500;
+    box-shadow: 0 0 12px rgba(255, 85, 0, 0.4), inset 0 0 4px rgba(255, 85, 0, 0.2);
+  }
+  33% {
+    border-color: #00ff66;
+    box-shadow: 0 0 12px rgba(0, 255, 102, 0.4), inset 0 0 4px rgba(0, 255, 102, 0.2);
+  }
+  50% {
+    border-color: #00ffff;
+    box-shadow: 0 0 12px rgba(0, 255, 255, 0.4), inset 0 0 4px rgba(0, 255, 255, 0.2);
+  }
+  66% {
+    border-color: #0066ff;
+    box-shadow: 0 0 12px rgba(0, 102, 255, 0.4), inset 0 0 4px rgba(0, 102, 255, 0.2);
+  }
+  83% {
+    border-color: #7f00ff;
+    box-shadow: 0 0 12px rgba(127, 0, 255, 0.4), inset 0 0 4px rgba(127, 0, 255, 0.2);
+  }
+}
+
+.neon-rgb-glow {
+  border-width: 2px !important;
+  border-style: solid !important;
+  animation: neon-rgb-border 8s linear infinite !important;
+}
+
+@keyframes neon-rgb-border-left {
+  0%, 100% {
+    border-left-color: #ff007f !important;
+  }
+  16% {
+    border-left-color: #ff5500 !important;
+  }
+  33% {
+    border-left-color: #00ff66 !important;
+  }
+  50% {
+    border-left-color: #00ffff !important;
+  }
+  66% {
+    border-left-color: #0066ff !important;
+  }
+  83% {
+    border-left-color: #7f00ff !important;
+  }
+}
+
+.neon-sidebar-glow {
+  border-left-width: 2px !important;
+  border-left-style: solid !important;
+  animation: neon-rgb-border-left 8s linear infinite !important;
+}
+
+#qr-canvas-element {
+  width: 144px !important;
+  height: 144px !important;
+}
+
+@media (min-width: 640px) {
+  #qr-canvas-element {
+    width: 176px !important;
+    height: 176px !important;
+  }
+}
+
+@media (min-width: 768px) {
+  #qr-canvas-element {
+    width: 224px !important;
+    height: 224px !important;
+  }
+}
+
+/* Ambient animated glowing background orbs */
+.bg-ambient-glow {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.glow-orb-1, .glow-orb-2 {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.15;
+  mix-blend-mode: plus-lighter;
+  animation: float-around 25s ease-in-out infinite alternate;
+}
+
+.glow-orb-1 {
+  width: 300px;
+  height: 300px;
+  background: radial-gradient(circle, rgba(6, 182, 212, 0.4) 0%, rgba(99, 102, 241, 0.05) 100%);
+  top: -10%;
+  left: -10%;
+}
+
+.glow-orb-2 {
+  width: 350px;
+  height: 350px;
+  background: radial-gradient(circle, rgba(168, 85, 247, 0.4) 0%, rgba(99, 102, 241, 0.05) 100%);
+  bottom: -15%;
+  right: -10%;
+  animation-duration: 35s;
+  animation-delay: -5s;
+}
+
+.light-mode-glow .glow-orb-1, .light-mode-glow .glow-orb-2 {
+  opacity: 0.08;
+  mix-blend-mode: multiply;
+}
+
+@keyframes float-around {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(80px, 60px) scale(1.15);
+  }
+  100% {
+    transform: translate(-40px, 120px) scale(0.9);
+  }
+}
+
+
+
+
+
 
