@@ -19,7 +19,7 @@
   <img src="https://img.shields.io/github/languages/top/satyajitpratihar07/instant?style=for-the-badge">
   <img src="https://img.shields.io/github/stars/satyajitpratihar07/instant?style=for-the-badge">
 </p>
----
+
 🌐 Live Website
 👉 https://instant07.vercel.app
 </div>
