@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://instant-07.vercel.app">
+  <a href="https://instant07.vercel.app">
     <img src="https://img.shields.io/badge/🌐_Live_Demo-Visit_Now-6C63FF?style=for-the-badge">
   </a>
   <a href="LICENSE">
