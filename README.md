@@ -8,7 +8,6 @@
   A modern peer-to-peer communication platform powered by dynamic QR pairing,
   6-digit invite codes, and Firebase Realtime synchronization.
 </p>
-
 <p align="center">
   <a href="https://instant07.vercel.app">
     <img src="https://img.shields.io/badge/🌐_Live_Demo-Visit_Now-6C63FF?style=for-the-badge">
