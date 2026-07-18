@@ -187,19 +187,7 @@ function renderBotMessage(text: string) {
       lastIndex = linkRegex.lastIndex;
     }
     if (lastIndex < line.length) {
-      parts.push(line.substring(lastIndex));
-    }
-
-    // Parse bold: **text**
-    const parsedLine = parts.map((part) => {
-      if (typeof part !== 'string') return part;
-      const boldRegex = /\*\*([^*]+)\*\*/g;
-      const subParts = [];
-      let subLastIndex = 0;
-      let subMatch;
-      while ((subMatch = boldRegex.exec(part)) !== null) {
-        if (subMatch.index > subLastIndex) {
-          subParts.push(part.substring(subLastIndex, subMatch.index));
+      \tring(subLastIndex, subMatch.index));
         }
         subParts.push(<strong key={subMatch.index} className="font-extrabold text-white">{subMatch[1]}</strong>);
         subLastIndex = boldRegex.lastIndex;
@@ -306,25 +294,7 @@ export default function ChatRoom({
             <div class="message-text" style="word-break: break-word; white-space: pre-wrap;">${msg.text || ""}</div>
             ${msg.file ? `<div style="font-size: 9px; color: #0284c7; font-weight: bold; border-top: 1px solid rgba(0,0,0,0.05); padding-top: 2px; margin-top: 2px;">📁 ${msg.file.name}</div>` : ""}
             <div class="message-time" style="font-size: 8px; color: #94a3b8; align-self: flex-end; font-family: monospace;">${timeStr}</div>
-          </div>
-        </div>
-      `;
-    }).join("");
 
-    const pageHtml = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Chat Transcript - InstantE2E</title>
-        <style>
-          body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            padding: 20px 30px;
-            color: #1e293b;
-            background: #fff;
-            max-width: 800px;
-            margin: 0 auto;
-          }
           .header {
             border-bottom: 2px solid #e2e8f0;
             padding-bottom: 8px;
@@ -416,17 +386,7 @@ export default function ChatRoom({
         <div class="chat-feed">
           ${messagesHtml || '<div style="text-align: center; color: #64748b; font-size: 13px; margin-top: 30px; font-weight: 500;">No messages in this chat.</div>'}
         </div>
-        
-        <script>
-          window.onload = function() {
-            setTimeout(function() {
-              window.print();
-            }, 600);
-          };
-
-          function copyChatToClipboard() {
-            const rows = Array.from(document.querySelectorAll('.message-row'));
-            if (rows.length === 0) {
+if (rows.length === 0) {
               alert('No messages to copy.');
               return;
             }
@@ -522,17 +482,7 @@ export default function ChatRoom({
       width = canvas.offsetWidth;
       height = canvas.offsetHeight;
       canvas.width = width * currentDpr;
-      canvas.height = height * currentDpr;
-    };
-    window.addEventListener("resize", handleResize);
-
-    const render = () => {
-      const currentDpr = window.devicePixelRatio || 1;
-      ctx.setTransform(currentDpr, 0, 0, currentDpr, 0, 0);
-      ctx.clearRect(0, 0, width, height);
-
-      const halfWidth = width / 2;
-      const halfHeight = height / 2;
+      canvas.height
 
       // Slowly increment galaxy orbital rotation
       rotationAngle += 0.0015;
@@ -620,25 +570,7 @@ export default function ChatRoom({
                 ctx.strokeStyle = isDarkMode ? `rgba(6, 182, 212, ${alpha})` : `rgba(79, 70, 229, ${alpha})`;
                 ctx.stroke();
               }
-            }
-          }
-        }
-      }
-
-      animationFrameId = requestAnimationFrame(render);
-    };
-
-    render();
-
-    return () => {
-      cancelAnimationFrame(animationFrameId);
-      window.removeEventListener("resize", handleResize);
-    };
-  }, [isDarkMode]);
-
-  const activePeer = peers[0] || peer || { id: "awaiting", name: "Awaiting...", avatarSeed: "default", online: false };
-
-  const handleKickPeer = async (peerId: string, peerName: string) => {
+         Name: string) => {
     if (!window.confirm(`Are you sure you want to kick ${peerName} from this chat room?`)) return;
     try {
       await remove(dbRef(db, `rooms/${roomId}/members/${peerId}`));
@@ -737,20 +669,6 @@ export default function ChatRoom({
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
-
-  // Handle local user typing state updates
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setInputText(e.target.value);
-
-    // Send typing notification if not already typing
-    if (!isSelfTyping) {
-      setIsSelfTyping(true);
-      onSetTyping?.(true);
-    }
-
-    // Reset typing timer
-    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-    typingTimeoutRef.current = setTimeout(() => {
       setIsSelfTyping(false);
       onSetTyping?.(false);
     }, 2000);
@@ -839,19 +757,7 @@ export default function ChatRoom({
     try {
       if (attachments.length > 0) {
         // Upload each attachment directly to Firebase and dispatch messaging event
-        for (const attachment of attachments) {
-          const fileId = Math.random().toString(36).substring(2, 15);
-          await set(dbRef(db, `rooms/${roomId}/files/${fileId}`), {
-            id: fileId,
-            name: attachment.file.name,
-            type: attachment.file.type,
-            size: attachment.file.size,
-            data: attachment.base64Data,
-          });
-
-          // Send message with file metadata attached
-          onSendMessage("", fileId, {
-            name: attachment.file.name,
+        for (const att
             type: attachment.file.type,
             size: attachment.file.size,
           });
