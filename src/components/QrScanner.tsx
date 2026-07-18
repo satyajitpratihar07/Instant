@@ -5,34 +5,8 @@ import { Camera, AlertCircle, Sparkles, Check, Send, ArrowRight, Upload } from "
 interface QrScannerProps {
   onScanSuccess: (targetId: string) => void;
   onCancel: () => void;
-  isDarkMode: boolean;
-}
-
-export default function QrScanner({ onScanSuccess, onCancel, isDarkMode }: QrScannerProps) {
-  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
-  const [scanError, setScanError] = useState<string | null>(null);
-  const [fileError, setFileError] = useState<string | null>(null);
-  const [manualInput, setManualInput] = useState("");
-  const [scannerActive, setScannerActive] = useState(false);
-  const scannerRef = useRef<Html5Qrcode | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (!scannerActive) return;
-
-    let active = true;
-
-    const startScanner = async () => {
+  isDarkMode: bool
       try {
-        // Instantiate the QR reader on the target div
-        const html5Qrcode = new Html5Qrcode("qr-reader-target");
-        scannerRef.current = html5Qrcode;
-
-        // Query available cameras
-        const cameras = await Html5Qrcode.getCameras();
-        if (!cameras || cameras.length === 0) {
-          throw new Error("No cameras found on this device.");
-        }
 
         // Find back/environment camera if available
         const backCamera = cameras.find(c => 
