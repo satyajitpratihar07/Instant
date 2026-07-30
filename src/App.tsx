@@ -16,6 +16,7 @@ import {
   AlertCircle,
   GraduationCap,
   Github,
+  Linkedin,
   Globe,
   Code2,
   Shield,
@@ -1515,7 +1516,7 @@ export default function App() {
                     {/* Actions/Social Footer */}
                     <div className="mt-4 flex justify-center w-full gap-2">
                       <a
-                        href="https://github.com/satyajitpratihar07"
+                        href="https://www.linkedin.com/in/satyajit-pratihar"
                         target="_blank"
                         rel="noopener noreferrer"
                         className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-[9px] font-black uppercase tracking-wider rounded-xl transition-all hover:scale-[1.03] active:scale-[0.97] cursor-pointer shadow-sm ${isDarkMode
@@ -1523,8 +1524,8 @@ export default function App() {
                           : "bg-slate-100 hover:bg-slate-200 border border-slate-200 text-indigo-600"
                           }`}
                       >
-                        <Github className="w-3.5 h-3.5" />
-                        GitHub Profile
+                        <Linkedin className="w-3.5 h-3.5" />
+                        LinkedIn Profile
                       </a>
                     </div>
                   </div>
