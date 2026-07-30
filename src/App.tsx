@@ -17,7 +17,11 @@ import {
   GraduationCap,
   Github,
   Globe,
-  Code2
+  Code2,
+  Shield,
+  Lock,
+  ServerCrash,
+  EyeOff
 } from "lucide-react";
 import { Message, Peer, Session, JoinRequest } from "./types";
 import { playNotificationSound, getAvatarGradient, getInitials } from "./utils";
@@ -1110,7 +1114,7 @@ export default function App() {
               {/* Left Side: Heading, Info, and Notice */}
               <div className="lg:col-span-7 flex flex-col items-center lg:items-start text-center lg:text-left space-y-6">
                 <div id="hero-heading" className="space-y-4">
-                  <h2 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tight leading-tight">
+                  <h2 className="text-5xl md:text-6xl lg:text-7xl font-black tracking-tight leading-tight lg:leading-[1.05]">
                     Connect Instantly with <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-indigo-400 to-purple-400">Secure QR Codes</span>
                   </h2>
                   <p className="text-sm md:text-base text-slate-400 leading-relaxed max-w-lg mx-auto lg:mx-0">
@@ -1119,9 +1123,57 @@ export default function App() {
                 </div>
 
                 {/* Development Notice Banner */}
-                <div id="dev-notice-banner" className="max-w-md p-4 rounded-3xl border text-sm font-semibold flex items-center justify-center lg:justify-start gap-2.5 shadow-sm bg-amber-500/10 border-amber-500/20 text-amber-500">
+                <div id="dev-notice-banner" className="max-w-md p-4 rounded-3xl border text-sm font-semibold flex items-center justify-center lg:justify-start gap-2.5 shadow-sm bg-amber-500/10 border-amber-500/20 text-amber-500 w-full">
                   <AlertCircle className="w-4 h-4 shrink-0" />
                   <span>Notice: Some features are under active development.</span>
+                </div>
+
+                {/* Security and Feature Cards Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full pt-4">
+                  {/* Card 1 */}
+                  <div className={`p-4 rounded-2xl border transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 hover:shadow-lg text-left group ${
+                    isDarkMode 
+                      ? "bg-white/5 border-white/5 hover:border-cyan-500/30 hover:shadow-cyan-500/5 text-white" 
+                      : "bg-slate-50 border-slate-200 hover:border-indigo-400 hover:shadow-indigo-500/5 text-slate-800"
+                  }`}>
+                    <div className="p-2 rounded-xl bg-cyan-500/10 text-cyan-400 w-fit mb-3 group-hover:scale-110 transition-transform">
+                      <Shield className="w-5 h-5 animate-pulse" />
+                    </div>
+                    <h5 className="font-bold text-xs uppercase tracking-wider text-cyan-400 mb-1">AES-256 E2E</h5>
+                    <p className="text-[10px] text-slate-400 font-medium leading-relaxed">
+                      All messages and files are encrypted client-side using WebCrypto keys.
+                    </p>
+                  </div>
+
+                  {/* Card 2 */}
+                  <div className={`p-4 rounded-2xl border transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 hover:shadow-lg text-left group ${
+                    isDarkMode 
+                      ? "bg-white/5 border-white/5 hover:border-indigo-500/30 hover:shadow-indigo-500/5 text-white" 
+                      : "bg-slate-50 border-slate-200 hover:border-indigo-400 hover:shadow-indigo-500/5 text-slate-800"
+                  }`}>
+                    <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-400 w-fit mb-3 group-hover:scale-110 transition-transform">
+                      <Lock className="w-5 h-5" />
+                    </div>
+                    <h5 className="font-bold text-xs uppercase tracking-wider text-indigo-400 mb-1">Zero Logging</h5>
+                    <p className="text-[10px] text-slate-400 font-medium leading-relaxed">
+                      No server persistence. Active keys are held purely in ephemeral state.
+                    </p>
+                  </div>
+
+                  {/* Card 3 */}
+                  <div className={`p-4 rounded-2xl border transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 hover:shadow-lg text-left group ${
+                    isDarkMode 
+                      ? "bg-white/5 border-white/5 hover:border-purple-500/30 hover:shadow-purple-500/5 text-white" 
+                      : "bg-slate-50 border-slate-200 hover:border-indigo-400 hover:shadow-indigo-500/5 text-slate-800"
+                  }`}>
+                    <div className="p-2 rounded-xl bg-purple-500/10 text-purple-400 w-fit mb-3 group-hover:scale-110 transition-transform">
+                      <ServerCrash className="w-5 h-5" />
+                    </div>
+                    <h5 className="font-bold text-xs uppercase tracking-wider text-purple-400 mb-1">Direct WebRTC</h5>
+                    <p className="text-[10px] text-slate-400 font-medium leading-relaxed">
+                      Peers share data directly when online. No central databases, no trace.
+                    </p>
+                  </div>
                 </div>
               </div>
 
