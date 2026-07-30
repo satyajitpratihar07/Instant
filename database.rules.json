@@ -1,0 +1,68 @@
+{
+  "rules": {
+    "sessions": {
+      ".read": "true",
+      "$session_id": {
+        ".write": "true",
+        ".validate": "newData.hasChildren(['id', 'avatarSeed', 'name'])",
+        "incomingRequests": {
+          "$sender_id": {
+            ".validate": "newData.hasChildren(['id', 'name', 'avatarSeed', 'timestamp'])"
+          }
+        }
+      }
+    },
+    "rooms": {
+      ".read": "true",
+      "$room_id": {
+        ".write": "true",
+        "members": {
+          "$member_id": {
+            ".validate": "newData.hasChildren(['id', 'name', 'avatarSeed', 'joinedAt', 'lastActive'])"
+          }
+        },
+        "typing": {
+          "$member_id": {
+            ".validate": "newData.isBoolean()"
+          }
+        },
+        "joinRequests": {
+          "$requester_id": {
+            ".validate": "newData.hasChildren(['id', 'name', 'avatarSeed', 'timestamp'])"
+          }
+        },
+        "knock": {
+          ".validate": "newData.hasChildren(['senderId', 'senderName', 'timestamp'])"
+        },
+        "messages": {
+          "$message_id": {
+            ".validate": "newData.hasChildren(['id', 'senderId', 'senderName', 'text', 'timestamp'])"
+          }
+        }
+      }
+    },
+    "codes": {
+      ".read": "true",
+      "$code": {
+        ".write": "true",
+        ".validate": "$code.matches(/^[0-9]{6}$/) && newData.hasChildren(['sessionId', 'roomId', 'createdAt'])"
+      }
+    },
+    "files": {
+      "$room_id": {
+        "$file_id": {
+          ".read": "true",
+          ".write": "true",
+          "meta": {
+            ".validate": "newData.hasChildren(['id', 'name', 'type', 'size', 'totalChunks', 'status'])"
+          },
+          "chunks": {
+            "$chunk_index": {
+              ".validate": "newData.hasChildren(['data'])"
+            }
+          }
+        }
+      }
+    }
+  }
+}

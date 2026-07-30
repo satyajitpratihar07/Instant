@@ -1,6 +1,14 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
 @import "tailwindcss";
 
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background-color: #0A0A0C;
+}
+
 @theme {
   --font-sans: "Outfit", "Inter", system-ui, -apple-system, sans-serif;
   --font-mono: "JetBrains Mono", SFMono-Regular, monospace;
@@ -34,52 +42,33 @@
   -webkit-backdrop-filter: blur(12px);
 }
 
-/* Hide standard scrollbars for seamless UI
+/* Hide scrollbars completely — no visible line on any side */
+* {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+}
+*::-webkit-scrollbar {
+  display: none; /* Chrome/Safari/Opera */
+}
+
 /* Custom background styles for Sleek Interface */
-/* Animated Neon RGB border/shadow effect */
-@keyframes neon-rgb-border {
-
-    border-color: #0066ff;
-    box-shadow: 0 0 12px rgba(0, 102, 255, 0.4), inset 0 0 4px rgba(0, 102, 255, 0.2);
-  }
-  83% {
-    border-color: #7f00ff;
-    box-shadow: 0 0 12px rgba(127, 0, 255, 0.4), inset 0 0 4px rgba(127, 0, 255, 0.2);
-  }
+.bg-sleek-body {
+  background-color: #0A0A0C !important;
+}
+.bg-sleek-card {
+  background-color: #0E0E12 !important;
+}
+.bg-sleek-chat {
+  background-color: #08080A !important;
+}
+.border-sleek-subtle {
+  border-color: rgba(255, 255, 255, 0.05) !important;
+}
+.border-sleek-medium {
+  border-color: rgba(255, 255, 255, 0.1) !important;
 }
 
-.neon-rgb-glow {
-  border-width: 2px !important;
-  border-style: solid !important;
-  animation: neon-rgb-border 8s linear infinite !important;
-}
 
-@keyframes neon-rgb-border-left {
-  0%, 100% {
-    border-left-color: #ff007f !important;
-  }
-  16% {
-    border-left-color: #ff5500 !important;
-  }
-  33% {
-    border-left-color: #00ff66 !important;
-  }
-  50% {
-    border-left-color: #00ffff !important;
-  }
-  66% {
-    border-left-color: #0066ff !important;
-  }
-  83% {
-    border-left-color: #7f00ff !important;
-  }
-}
-
-.neon-sidebar-glow {
-  border-left-width: 2px !important;
-  border-left-style: solid !important;
-  animation: neon-rgb-border-left 8s linear infinite !important;
-}
 
 #qr-canvas-element {
   width: 144px !important;

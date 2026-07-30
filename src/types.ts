@@ -30,6 +30,13 @@ export interface Message {
   text: string;
   timestamp: number;
   file?: FileAttachment;
+  replyTo?: {
+    id: string;
+    senderName: string;
+    text: string;
+    fileType?: string;
+    fileName?: string;
+  };
 }
 
 export interface RoomSyncPayload {

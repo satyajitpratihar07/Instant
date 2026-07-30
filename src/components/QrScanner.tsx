@@ -5,7 +5,26 @@ import { Camera, AlertCircle, Sparkles, Check, Send, ArrowRight, Upload } from "
 interface QrScannerProps {
   onScanSuccess: (targetId: string) => void;
   onCancel: () => void;
-  isDarkMode: bool
+  isDarkMode: boolean;
+}
+
+export default function QrScanner({ onScanSuccess, onCancel, isDarkMode }: QrScannerProps) {
+  const [scannerActive, setScannerActive] = useState(false);
+  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  const [scanError, setScanError] = useState<string | null>(null);
+  const [fileError, setFileError] = useState<string | null>(null);
+  const [manualInput, setManualInput] = useState("");
+  const scannerRef = useRef<Html5Qrcode | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    let active = true;
+    if (!scannerActive) return;
+
+    const html5Qrcode = new Html5Qrcode("qr-reader-target");
+    scannerRef.current = html5Qrcode;
+
+    const startScanner = async () => {
       try {
 
         // Find back/environment camera if available
@@ -41,12 +60,11 @@ interface QrScannerProps {
               console.warn("Could not parse decoded text as URL:", e);
             }
 
-            // Stop scanning and trigger success
-            stopScanner().then(() => {
-              if (active) {
-                onScanSuccess(targetId);
-              }
-            });
+            // Trigger success instantly, stop scanner in the background
+            if (active) {
+              onScanSuccess(targetId);
+            }
+            stopScanner();
           },
           () => {
             // Verbose error logging ignored for optimal scanning experience
@@ -106,10 +124,9 @@ interface QrScannerProps {
       console.warn("Manual input URL parsing skipped:", e);
     }
 
-    // Trigger success
-    stopScanner().then(() => {
-      onScanSuccess(targetId);
-    });
+    // Trigger success instantly, stop scanner in the background
+    onScanSuccess(targetId);
+    stopScanner();
   };
 
   const handleFileScan = async (e: React.ChangeEvent<HTMLInputElement>) => {

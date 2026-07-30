@@ -61,12 +61,26 @@ export default function App() {
   const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([]);
   const [waitingForGroupApprove, setWaitingForGroupApprove] = useState<string | null>(null);
   const [roomMemberName, setRoomMemberName] = useState<string>("");
-  const [keepAlive5h, setKeepAlive5h] = useState<boolean>(() => localStorage.getItem("qr_e2e_keep_alive_5h") === "true");
+  const [keepAlive3h, setKeepAlive3h] = useState<boolean>(() => localStorage.getItem("qr_e2e_keep_alive_3h") === "true");
+  const [roomExpiresAt, setRoomExpiresAt] = useState<number | null>(null);
   const [showHostOfflineModal, setShowHostOfflineModal] = useState<boolean>(false);
+  const [knockVolume, setKnockVolume] = useState<number>(() => {
+    return Number(localStorage.getItem("knock_volume") || "0.2");
+  });
 
   useEffect(() => {
-    localStorage.setItem("qr_e2e_keep_alive_5h", keepAlive5h ? "true" : "false");
-  }, [keepAlive5h]);
+    localStorage.setItem("qr_e2e_keep_alive_3h", keepAlive3h ? "true" : "false");
+  }, [keepAlive3h]);
+
+  useEffect(() => {
+    localStorage.setItem("qr_e2e_dark_theme", isDarkMode ? "true" : "false");
+    const metaThemeColor = document.querySelector('meta[name="theme-color"]');
+    if (metaThemeColor) {
+      metaThemeColor.setAttribute("content", isDarkMode ? "#0A0A0C" : "#F8FAFC");
+    }
+    document.body.style.backgroundColor = isDarkMode ? "#0A0A0C" : "#F8FAFC";
+    document.documentElement.style.backgroundColor = isDarkMode ? "#0A0A0C" : "#F8FAFC";
+  }, [isDarkMode]);
 
   // --- Sync connectedRoomId to localStorage to prevent home screen flash on reload ---
   useEffect(() => {
@@ -100,6 +114,7 @@ export default function App() {
   const isHostRef = useRef<boolean>(false);
   const isLeavingRef = useRef<boolean>(false);
   const peersCountRef = useRef<number>(0);
+  const lastKnockTimeRef = useRef<number>(0);
 
   // --- Custom Toast Dispatcher ---
   const addToast = (message: string, type: "success" | "error" | "info" = "info") => {
@@ -187,11 +202,15 @@ export default function App() {
   }, [session?.id, session?.connectedRoomId]);
 
   const [viewportHeight, setViewportHeight] = useState(typeof window !== "undefined" ? window.innerHeight : 800);
+  const [isKeyboardLocked, setIsKeyboardLocked] = useState(false);
+  const isKeyboardLockedRef = React.useRef(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
 
     const updateHeight = () => {
+      // When keyboard is locked, don't update viewport height — keeps layout frozen
+      if (isKeyboardLockedRef.current) return;
       const height = window.visualViewport ? window.visualViewport.height : window.innerHeight;
       setViewportHeight(height);
       if (view === "chat" && (window.scrollY !== 0 || window.scrollX !== 0)) {
@@ -259,7 +278,7 @@ export default function App() {
       if (!snapshot.exists()) {
         // Unsubscribe immediately to prevent subsequent callback triggers
         if (roomUnsubscribe) roomUnsubscribe();
-        
+
         // Room was closed/deleted
         if (isLeavingRef.current) return;
         const wasInChat = session?.connectedRoomId !== null;
@@ -280,22 +299,44 @@ export default function App() {
       }
 
       const roomData = snapshot.val();
-      const membersMap = roomData.members || {};
-      const isHost = roomData.creatorId === session.id || (!roomData.creatorId && Object.keys(membersMap)[0] === session.id);
+      const createdTime = roomData.createdTime || Date.now();
+      const expiresAt = roomData.expiresAt || (createdTime + 3 * 60 * 60 * 1000);
 
-      // Security check: Kick out of chat room if user is not an approved member
-      if (!membersMap[session.id]) {
-        if (isLeavingRef.current) return;
+      // Check if room has expired (3 hours)
+      if (Date.now() > expiresAt) {
+        if (roomUnsubscribe) roomUnsubscribe();
+
+        // Delete room and files from DB
+        remove(ref(db, `rooms/${roomId}`)).catch(err => console.error("Error auto-deleting room:", err));
+        remove(ref(db, `files/${roomId}`)).catch(err => console.error("Error auto-deleting room files:", err));
+
         setPeer(null);
         setPeers([]);
         setPeerOnline(false);
         setPeerTyping(false);
         setMessages([]);
         setSession((prev) => prev ? { ...prev, connectedRoomId: null } : null);
-        update(ref(db, `sessions/${session.id}`), { connectedRoomId: null });
+        update(ref(db, `sessions/${session.id}`), { connectedRoomId: null }).catch(err => console.error("Error clearing session room:", err));
         setView("home");
-        addToast("Access denied. You are not a member of this chat room.", "error");
+        addToast("Chat session expired after 3 hours.", "info");
         return;
+      }
+
+      setRoomExpiresAt(expiresAt);
+
+      const membersMap = roomData.members || {};
+      const isHost = roomData.creatorId === session.id || (!roomData.creatorId && Object.keys(membersMap)[0] === session.id);
+
+      // Sync knock nudge
+      if (roomData.knock) {
+        const knockVal = roomData.knock;
+        if (knockVal.senderId !== session.id) {
+          if (knockVal.timestamp > lastKnockTimeRef.current && Date.now() - knockVal.timestamp < 4000) {
+            lastKnockTimeRef.current = knockVal.timestamp;
+            playNotificationSound("knock", knockVolume);
+            addToast(`${knockVal.senderName || "Peer"} knocked you!`, "info");
+          }
+        }
       }
 
       // Sync join requests
@@ -319,14 +360,30 @@ export default function App() {
 
       // Sync messages
       if (roomData.messages) {
-        const msgList: Message[] = Object.entries(roomData.messages).map(([id, val]: [string, any]) => ({
-          id,
-          senderId: val.senderId,
-          senderName: val.senderId === session.id ? (membersMap[session.id]?.name || val.senderName || session.name) : (membersMap[val.senderId]?.name || val.senderName || "Member"),
-          text: val.text,
-          timestamp: val.timestamp,
-          file: val.file || undefined
-        })).sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+        const msgList: Message[] = [];
+        Object.entries(roomData.messages).forEach(([id, val]: [string, any]) => {
+          const isExpiredFile = val.file && Date.now() > val.timestamp + 5 * 60 * 1000;
+          if (isExpiredFile) {
+            // Delete file chunks first, then the message node to keep DB consistent
+            remove(ref(db, `files/${roomId}/${val.file.id}`))
+              .catch(err => console.error("Error auto-deleting file:", err))
+              .finally(() => {
+                remove(ref(db, `rooms/${roomId}/messages/${id}`))
+                  .catch(err => console.error("Error auto-deleting message:", err));
+              });
+          } else {
+            msgList.push({
+              id,
+              senderId: val.senderId,
+              senderName: val.senderId === session.id ? (membersMap[session.id]?.name || val.senderName || session.name) : (membersMap[val.senderId]?.name || val.senderName || "Member"),
+              text: val.text,
+              timestamp: val.timestamp,
+              file: val.file || undefined,
+              replyTo: val.replyTo || undefined
+            });
+          }
+        });
+        msgList.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
 
         // Play sound for incoming message
         setMessages((prev) => {
@@ -359,7 +416,7 @@ export default function App() {
       const myTypingRef = ref(db, `rooms/${roomId}/typing/${session.id}`);
       const roomNodeRef = ref(db, `rooms/${roomId}`);
 
-      if (keepAlive5h) {
+      if (keepAlive3h) {
         // If keep alive is enabled, do NOT set onDisconnect remove handlers
         onDisconnect(myMemberRef).cancel();
         onDisconnect(myTypingRef).cancel();
@@ -414,14 +471,14 @@ export default function App() {
       onDisconnect(myTypingRef).cancel();
       onDisconnect(roomNodeRef).cancel();
     };
-  }, [session?.connectedRoomId, session?.id, keepAlive5h]);
+  }, [session?.connectedRoomId, session?.id, keepAlive3h]);
 
   // --- Grace period for offline peers (Disabled to prevent auto-disconnect) ---
   useEffect(() => {
     // Disabled auto-disconnect so that users stay in the room until they manually disconnect.
     // This allows the host/peers to refresh or close their tab temporarily without breaking the connection.
     return;
-  }, [view, peers.length, peerOnline, keepAlive5h, session?.connectedRoomId]);
+  }, [view, peers.length, peerOnline, keepAlive3h, session?.connectedRoomId]);
 
   // --- Handshake & Register Session ---
   useEffect(() => {
@@ -443,32 +500,9 @@ export default function App() {
     const savedSessionId = localStorage.getItem("qr_e2e_session_id");
 
     const initializeSession = async () => {
-      // --- Expired Session & Room cleanup ---
-      const cleanupExpiredData = async () => {
-        try {
-          const now = Date.now();
-          const roomsSnap = await get(ref(db, "rooms"));
-          if (roomsSnap.exists()) {
-            const rooms = roomsSnap.val();
-            Object.entries(rooms).forEach(([id, roomData]: [string, any]) => {
-              if (roomData.expiresAt && roomData.expiresAt < now) {
-                remove(ref(db, `rooms/${id}`));
-              }
-            });
-          }
-          const sessionsSnap = await get(ref(db, "sessions"));
-          if (sessionsSnap.exists()) {
-            const sessions = sessionsSnap.val();
-            Object.entries(sessions).forEach(([id, sessData]: [string, any]) => {
-              if (sessData.expiresAt && sessData.expiresAt < now) {
-                remove(ref(db, `sessions/${id}`));
-              }
-            });
-          }
-        } catch (err) {
-          console.error("Expired data cleanup failed:", err);
-        }
-      };
+      // --- Expired Session & Room cleanup (Removed for performance) ---
+      // Fetching all rooms on client startup downloads the entire database (including large files)
+      // which causes massive loading delays. We skip this global cleanup.
 
       let activeSession: Session | null = null;
 
@@ -485,8 +519,8 @@ export default function App() {
 
       if (!activeSession) {
         const newId = savedSessionId && /^[0-9a-f-]{36}$/i.test(savedSessionId) ? savedSessionId : generateUUID();
-        // Check keepAlive5h directly from localStorage for correctness during initialization
-        const isKeepAlive = localStorage.getItem("qr_e2e_keep_alive_5h") === "true";
+        // Check keepAlive3h directly from localStorage for correctness during initialization
+        const isKeepAlive = localStorage.getItem("qr_e2e_keep_alive_3h") === "true";
         activeSession = {
           id: newId,
           avatarSeed: Math.random().toString(36).substring(7),
@@ -495,7 +529,7 @@ export default function App() {
           lastActive: Date.now()
         };
         if (isKeepAlive) {
-          activeSession.expiresAt = Date.now() + 5 * 60 * 60 * 1000;
+          activeSession.expiresAt = Date.now() + 3 * 60 * 60 * 1000;
         }
         try {
           await set(ref(db, `sessions/${newId}`), activeSession);
@@ -504,8 +538,7 @@ export default function App() {
         }
       }
 
-      // Cleanup any expired database data
-      cleanupExpiredData();
+      // Cleanup logic removed to prevent massive database downloads
 
       // Always cancel disconnect handler to prevent session deletion on refresh/tab switch
       onDisconnect(ref(db, `sessions/${activeSession.id}`)).cancel();
@@ -513,17 +546,30 @@ export default function App() {
       if (activeSession.connectedRoomId) {
         const roomId = activeSession.connectedRoomId;
         try {
+          // Fetch room node to verify existence and check age
           const roomSnap = await get(ref(db, `rooms/${roomId}`));
           if (roomSnap.exists()) {
-            // Re-insert or update our member status to be online
-            await update(ref(db, `rooms/${roomId}/members/${activeSession.id}`), {
-              id: activeSession.id,
-              name: activeSession.name,
-              avatarSeed: activeSession.avatarSeed,
-              joinedAt: Date.now(),
-              lastActive: Date.now()
-            });
-            setView("chat");
+            const roomData = roomSnap.val();
+            const createdTime = roomData.createdTime || Date.now();
+            const expiresAt = roomData.expiresAt || (createdTime + 3 * 60 * 60 * 1000);
+            
+            if (Date.now() > expiresAt) {
+              // Expired room! Delete from DB.
+              await remove(ref(db, `rooms/${roomId}`));
+              await remove(ref(db, `files/${roomId}`));
+              activeSession.connectedRoomId = null;
+              await update(ref(db, `sessions/${activeSession.id}`), { connectedRoomId: null });
+            } else {
+              // Re-insert or update our member status to be online
+              await update(ref(db, `rooms/${roomId}/members/${activeSession.id}`), {
+                id: activeSession.id,
+                name: activeSession.name,
+                avatarSeed: activeSession.avatarSeed,
+                joinedAt: Date.now(),
+                lastActive: Date.now()
+              });
+              setView("chat");
+            }
           } else {
             activeSession.connectedRoomId = null;
             await update(ref(db, `sessions/${activeSession.id}`), { connectedRoomId: null });
@@ -560,6 +606,7 @@ export default function App() {
         id: newRoomId,
         creatorId: session.id,
         createdTime: Date.now(),
+        expiresAt: Date.now() + 3 * 60 * 60 * 1000, // Always set 3h expiry
         members: {
           [session.id]: {
             id: session.id,
@@ -570,9 +617,6 @@ export default function App() {
           }
         }
       };
-      if (keepAlive5h) {
-        roomData.expiresAt = Date.now() + 5 * 60 * 60 * 1000;
-      }
       await set(ref(db, `rooms/${newRoomId}`), roomData);
 
       isHostRef.current = true; // Mark as host
@@ -609,12 +653,14 @@ export default function App() {
           const roomId = val.roomId;
 
           if (roomId) {
-            // Write a join request instead of directly joining
-            await set(ref(db, `rooms/${roomId}/joinRequests/${activeSess.id}`), {
+            // Write a join request instantly in the background
+            set(ref(db, `rooms/${roomId}/joinRequests/${activeSess.id}`), {
               id: activeSess.id,
               name: activeSess.name,
               avatarSeed: activeSess.avatarSeed,
               timestamp: Date.now()
+            }).catch((err) => {
+              console.error("Failed to send join request:", err);
             });
 
             setWaitingForGroupApprove(roomId);
@@ -648,12 +694,14 @@ export default function App() {
         const hostData = hostSnap.val();
         const roomId = hostData.connectedRoomId;
         if (roomId) {
-          // Write a group join request to the room
-          await set(ref(db, `rooms/${roomId}/joinRequests/${activeSess.id}`), {
+          // Write a group join request to the room instantly in the background
+          set(ref(db, `rooms/${roomId}/joinRequests/${activeSess.id}`), {
             id: activeSess.id,
             name: activeSess.name,
             avatarSeed: activeSess.avatarSeed,
             timestamp: Date.now()
+          }).catch((err) => {
+            console.error("Failed to send join request:", err);
           });
 
           setWaitingForGroupApprove(roomId);
@@ -691,6 +739,8 @@ export default function App() {
 
         await set(ref(db, `rooms/${newRoomId}`), {
           id: newRoomId,
+          createdTime: Date.now(),
+          expiresAt: Date.now() + 3 * 60 * 60 * 1000, // Set 3h expiry
           members: {
             [session.id]: {
               id: session.id,
@@ -706,8 +756,7 @@ export default function App() {
               joinedAt: Date.now(),
               lastActive: Date.now()
             }
-          },
-          createdTime: Date.now()
+          }
         });
 
         await update(ref(db, `sessions/${senderId}`), {
@@ -848,8 +897,26 @@ export default function App() {
     }
   };
 
+  // --- Knock Nudge Hook ---
+  const sendKnock = async () => {
+    if (!session?.connectedRoomId) return;
+    const roomId = session.connectedRoomId;
+    try {
+      await set(ref(db, `rooms/${roomId}/knock`), {
+        senderId: session.id,
+        senderName: roomMemberName || session.name,
+        timestamp: Date.now()
+      });
+      playNotificationSound("knock", knockVolume);
+      addToast("You knocked the peer!", "success");
+    } catch (e) {
+      console.error("Failed to send knock:", e);
+      addToast("Failed to knock peer", "error");
+    }
+  };
+
   // --- Send Message Hook ---
-  const sendMessage = async (text: string, fileId?: string, fileMeta?: any) => {
+  const sendMessage = async (text: string, fileId?: string, fileMeta?: any, replyTo?: Message["replyTo"]) => {
     if (!session?.connectedRoomId) return;
     const roomId = session.connectedRoomId;
 
@@ -862,7 +929,8 @@ export default function App() {
         senderName: roomMemberName || session.name, // Save sender name directly inside the message
         text,
         timestamp: Date.now(),
-        file: fileId ? { id: fileId, ...fileMeta } : null
+        file: fileId ? { id: fileId, ...fileMeta } : null,
+        replyTo: replyTo || null
       });
     } catch (e) {
       console.error("Failed to send message:", e);
@@ -876,15 +944,26 @@ export default function App() {
     const roomId = session.connectedRoomId;
 
     try {
-      // Fetch the message first to check if there is an associated file
+      // 1. Fetch the message to get associated file id before deleting
       const msgSnap = await get(ref(db, `rooms/${roomId}/messages/${messageId}`));
+
       if (msgSnap.exists()) {
         const msg = msgSnap.val();
+
+        // 2. Delete the file chunks node first (if any) before removing the message
         if (msg.file?.id) {
-          await remove(ref(db, `rooms/${roomId}/files/${msg.file.id}`));
+          try {
+            await remove(ref(db, `files/${roomId}/${msg.file.id}`));
+          } catch (fileErr) {
+            // File may already be gone (expired). Log and continue with message deletion.
+            console.warn("File node already removed or inaccessible:", fileErr);
+          }
         }
       }
+
+      // 3. Delete the message node — this propagates to all connected peers via realtime listener
       await remove(ref(db, `rooms/${roomId}/messages/${messageId}`));
+
     } catch (e) {
       console.error("Failed to delete message:", e);
       addToast("Failed to delete message", "error");
@@ -916,8 +995,8 @@ export default function App() {
       connectedRoomId: null,
       lastActive: Date.now()
     };
-    if (keepAlive5h) {
-      newSession.expiresAt = Date.now() + 5 * 60 * 60 * 1000;
+    if (keepAlive3h) {
+      newSession.expiresAt = Date.now() + 3 * 60 * 60 * 1000;
     }
 
     try {
@@ -941,9 +1020,8 @@ export default function App() {
     <div
       id="app-theme-root"
       style={view === "chat" ? { height: `${viewportHeight}px` } : undefined}
-      className={`font-sans transition-colors duration-300 ${
-        isDarkMode ? "bg-sleek-body text-slate-100" : "bg-slate-50 text-slate-800"
-      } ${view === "chat" ? "fixed left-0 top-0 w-full overflow-hidden" : "min-h-[100dvh]"}`}
+      className={`font-sans transition-colors duration-300 w-full ${isDarkMode ? "bg-sleek-body text-slate-100" : "bg-slate-50 text-slate-800"
+        } ${view === "chat" ? "fixed left-0 top-0 overflow-hidden" : "min-h-[100dvh]"}`}
     >
       {/* Background Decorative Tech Grids */}
       <div id="grid-background" className="fixed inset-0 pointer-events-none overflow-hidden z-0">
@@ -961,27 +1039,24 @@ export default function App() {
         />
       </div>
 
-      {/* Main Container Wrapper */}
       <div
         id="main-content-scroller"
-        className={`relative z-10 flex flex-col max-w-7xl mx-auto px-4 md:px-8 ${
-          view === "chat" ? "h-full py-0 md:py-3 justify-between overflow-hidden" : "min-h-[100dvh] justify-between pb-8 md:pb-12"
-        }`}
+        className={`relative z-10 flex flex-col ${view === "chat" ? "w-full h-full px-0 md:px-8 py-0 md:py-3 justify-between overflow-hidden md:max-w-7xl md:mx-auto" : "max-w-7xl mx-auto min-h-[100dvh] px-4 md:px-8 justify-between pb-8 md:pb-12"
+          }`}
       >
         {/* Navigation / Control Header */}
         <header
           id="global-nav-bar"
-          className={`sticky top-0 z-40 flex items-center justify-between py-4 px-6 my-4 rounded-2xl border select-none transition-colors duration-300 ${
-            view === "chat" ? "hidden md:flex" : "flex"
-          } ${isDarkMode
-            ? "bg-sleek-card border-white/5 shadow-lg shadow-black/35"
-            : "bg-white border-slate-200/80 shadow-md"
+          className={`sticky top-0 z-40 flex items-center justify-between py-4 px-6 my-4 rounded-3xl border select-none transition-colors duration-300 ${view === "chat" ? "hidden md:flex" : "flex"
+            } ${isDarkMode
+              ? "bg-sleek-card border-white/5 shadow-lg shadow-black/35"
+              : "bg-white border-slate-200/80 shadow-md"
             }`}
         >
           <div id="brand-logo" className="flex items-center gap-3">
             <div
               id="brand-badge"
-              className="w-10 h-10 bg-gradient-to-tr from-cyan-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-cyan-500/20 text-white"
+              className="w-10 h-10 bg-gradient-to-tr from-cyan-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-cyan-500/20 text-white"
             >
               <Zap className="w-5 h-5" />
             </div>
@@ -1021,11 +1096,10 @@ export default function App() {
         {/* Core Router Body */}
         <main
           id="view-renderer-canvas"
-          className={`flex-1 flex flex-col min-h-0 ${
-            view === "chat"
+          className={`flex-1 flex flex-col min-h-0 ${view === "chat"
               ? "justify-start py-0 md:py-4 overflow-hidden"
               : "justify-center py-8"
-          }`}
+            }`}
         >
           {view === "home" && (
             <div id="hero-view" className="text-center max-w-xl mx-auto space-y-10 animate-slide-up">
@@ -1044,7 +1118,7 @@ export default function App() {
               </div>
 
               {/* Development Notice Banner */}
-              <div id="dev-notice-banner" className="max-w-md mx-auto p-4 rounded-2xl border text-sm font-semibold flex items-center justify-center gap-2.5 shadow-sm transition-colors duration-300 bg-amber-500/10 border-amber-500/20 text-amber-500">
+              <div id="dev-notice-banner" className="max-w-md mx-auto p-4 rounded-3xl border text-sm font-semibold flex items-center justify-center gap-2.5 shadow-sm transition-colors duration-300 bg-amber-500/10 border-amber-500/20 text-amber-500">
                 <AlertCircle className="w-4 h-4 shrink-0" />
                 <span>Notice: Some features are under active development.</span>
               </div>
@@ -1054,7 +1128,7 @@ export default function App() {
                 <button
                   id="btn-generate-flow"
                   onClick={handleCreateRoom}
-                  className="flex flex-col items-center gap-4 p-6 rounded-3xl border transition-all duration-300 cursor-pointer bg-gradient-to-tr from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white shadow-xl shadow-cyan-500/10 border-white/5 hover:scale-[1.02] group"
+                  className="flex flex-col items-center gap-4 p-6 rounded-[2rem] border transition-all duration-300 cursor-pointer bg-gradient-to-tr from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white shadow-xl shadow-cyan-500/10 border-white/5 hover:scale-[1.02] group"
                 >
                   <div className="p-4 rounded-2xl bg-white/10 text-white">
                     <QrCode className="w-8 h-8 group-hover:rotate-6 transition-transform" />
@@ -1070,7 +1144,7 @@ export default function App() {
                 <button
                   id="btn-scan-flow"
                   onClick={() => setView("scan")}
-                  className={`flex flex-col items-center gap-4 p-6 rounded-3xl border transition-all duration-300 cursor-pointer hover:scale-[1.02] group ${isDarkMode
+                  className={`flex flex-col items-center gap-4 p-6 rounded-[2rem] border transition-all duration-300 cursor-pointer hover:scale-[1.02] group ${isDarkMode
                     ? "bg-white/5 border-white/5 hover:border-cyan-500/30 hover:bg-white/10 text-white"
                     : "bg-white border-slate-200 hover:border-indigo-600 hover:bg-slate-50 text-slate-800"
                     }`}
@@ -1109,7 +1183,7 @@ export default function App() {
           )}
 
           {view === "chat" && session && (
-            <div id="chat-view" className="animate-fade-in w-full h-full max-w-[95%] xl:max-w-[1400px] mx-auto -mx-4 md:mx-auto overflow-hidden flex flex-col flex-1 min-h-0">
+            <div id="chat-view" className="animate-fade-in w-full h-full max-w-full md:max-w-[95%] xl:max-w-[1400px] mx-auto overflow-hidden flex flex-col flex-1 min-h-0">
               <ChatRoom
                 roomId={session.connectedRoomId || ""}
                 sessionId={session.id}
@@ -1123,6 +1197,9 @@ export default function App() {
                 typingNames={typingNames}
                 joinRequests={joinRequests}
                 onSendMessage={sendMessage}
+                onSendKnock={sendKnock}
+                knockVolume={knockVolume}
+                onChangeKnockVolume={setKnockVolume}
                 onDeleteMessage={deleteMessage}
                 onSetTyping={handleSetTyping}
                 onLeaveRoom={leaveRoom}
@@ -1130,9 +1207,15 @@ export default function App() {
                 onRespondJoinRequest={respondGroupConnection}
                 isDarkMode={isDarkMode}
                 autoShowInvite={autoShowInvite}
-                keepAlive5h={keepAlive5h}
-                onToggleKeepAlive={() => setKeepAlive5h((prev) => !prev)}
+                keepAlive3h={keepAlive3h}
+                onToggleKeepAlive={() => setKeepAlive3h((prev) => !prev)}
                 isHost={isHostRef.current}
+                roomExpiresAt={roomExpiresAt || Date.now() + 3 * 60 * 60 * 1000}
+                isKeyboardLocked={isKeyboardLocked}
+                onKeyboardLockChange={(locked) => {
+                  isKeyboardLockedRef.current = locked;
+                  setIsKeyboardLocked(locked);
+                }}
               />
             </div>
           )}
@@ -1223,9 +1306,8 @@ export default function App() {
         <div id="host-offline-modal-backdrop" className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div
             id="host-offline-modal-card"
-            className={`w-full max-w-[380px] p-6 rounded-3xl border shadow-2xl text-center animate-scale-up backdrop-blur-md ${
-              isDarkMode ? "bg-slate-900/95 border-rose-500/30 text-white" : "bg-white/95 border-slate-200 text-slate-800"
-            }`}
+            className={`w-full max-w-[380px] p-6 rounded-3xl border shadow-2xl text-center animate-scale-up backdrop-blur-md ${isDarkMode ? "bg-slate-900/95 border-rose-500/30 text-white" : "bg-white/95 border-slate-200 text-slate-800"
+              }`}
           >
             <div className="w-16 h-16 rounded-full bg-rose-500/10 text-rose-500 flex items-center justify-center mx-auto mb-4 border border-rose-500/20 shadow-inner">
               <AlertCircle className="w-8 h-8 animate-pulse" />

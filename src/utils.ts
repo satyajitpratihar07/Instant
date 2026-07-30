@@ -2,12 +2,12 @@
  * Web Audio API synthesizer for instant, zero-latency audio alerts
  * without relying on external assets.
  */
-export function playNotificationSound(type: "request" | "message" | "success") {
+export function playNotificationSound(type: "request" | "message" | "success" | "knock", volume = 0.5) {
   try {
     const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
-    
+
     osc.connect(gain);
     gain.connect(ctx.destination);
 
@@ -39,6 +39,26 @@ export function playNotificationSound(type: "request" | "message" | "success") {
       gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
       osc.start();
       osc.stop(ctx.currentTime + 0.35);
+    } else if (type === "knock") {
+      // Richer, louder dual-oscillator chime sound
+      const osc2 = ctx.createOscillator();
+      osc2.connect(gain);
+
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(987.77, ctx.currentTime); // Principal B5
+      osc.frequency.setValueAtTime(1318.51, ctx.currentTime + 0.08); // E6
+
+      osc2.type = "sine";
+      osc2.frequency.setValueAtTime(493.88, ctx.currentTime); // Sub-harmonic B4
+      osc2.frequency.setValueAtTime(659.25, ctx.currentTime + 0.08); // E5
+
+      gain.gain.setValueAtTime(0.7 * volume, ctx.currentTime); // Adjustable volume (0.7 max gain)
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8);
+
+      osc.start();
+      osc2.start();
+      osc.stop(ctx.currentTime + 0.8);
+      osc2.stop(ctx.currentTime + 0.8);
     }
   } catch (e) {
     console.warn("Audio feedback blocked by browser autoplay policy:", e);
@@ -90,7 +110,7 @@ export function getAvatarGradient(seed: string): string {
 /**
  * Helper to check file size limits (configurable, e.g. 15MB)
  */
-export const MAX_FILE_SIZE_BYTES = 15 * 1024 * 1024; // 15MB
+export const MAX_FILE_SIZE_BYTES = 250 * 1024 * 1024; // 250MB
 
 /**
  * Resolves full API URL with fallback to local relative route
