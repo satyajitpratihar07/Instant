@@ -1370,57 +1370,57 @@ export default function App() {
                   <h2 className="text-5xl md:text-6xl lg:text-7xl font-black tracking-tight leading-tight lg:leading-[1.05]">
                     Connect Instantly with <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-indigo-400 to-purple-400">Secure QR Codes</span>
                   </h2>
-                  <p className="text-sm md:text-base text-slate-400 leading-relaxed max-w-lg mx-auto lg:mx-0">
+                  <p className="text-base md:text-lg text-slate-400 leading-relaxed max-w-xl mx-auto lg:mx-0">
                     A modern, secure E2E platform for sharing messages and files instantly. Zero logging, zero sign-ups, and absolute privacy.
                   </p>
                 </div>
 
                 {/* Development Notice Banner */}
-                <div id="dev-notice-banner" className="max-w-md p-4 rounded-3xl border text-sm font-semibold flex items-center justify-center lg:justify-start gap-2.5 shadow-sm bg-amber-500/10 border-amber-500/20 text-amber-500 w-full">
-                  <AlertCircle className="w-4 h-4 shrink-0" />
+                <div id="dev-notice-banner" className="max-w-lg p-4 rounded-3xl border text-sm md:text-base font-semibold flex items-center justify-center lg:justify-start gap-2.5 shadow-sm bg-amber-500/10 border-amber-500/20 text-amber-500 w-full">
+                  <AlertCircle className="w-4 h-4 md:w-5 md:h-5 shrink-0" />
                   <span>Notice: Some features are under active development.</span>
                 </div>
 
                 {/* Security and Feature Cards Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full pt-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 w-full pt-4">
                   {/* Card 1 */}
-                  <div className={`p-4 rounded-2xl border transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 hover:shadow-lg text-left group ${isDarkMode
+                  <div className={`p-5 rounded-2xl border transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 hover:shadow-lg text-left group ${isDarkMode
                     ? "bg-white/5 border-white/5 hover:border-cyan-500/30 hover:shadow-cyan-500/5 text-white"
                     : "bg-slate-50 border-slate-200 hover:border-indigo-400 hover:shadow-indigo-500/5 text-slate-800"
                     }`}>
-                    <div className="p-2 rounded-xl bg-cyan-500/10 text-cyan-400 w-fit mb-3 group-hover:scale-110 transition-transform">
-                      <Shield className="w-5 h-5 animate-pulse" />
+                    <div className="p-2.5 rounded-xl bg-cyan-500/10 text-cyan-400 w-fit mb-4 group-hover:scale-110 transition-transform">
+                      <Shield className="w-6 h-6 animate-pulse" />
                     </div>
-                    <h5 className="font-bold text-xs uppercase tracking-wider text-cyan-400 mb-1">AES-256 E2E</h5>
-                    <p className="text-[10px] text-slate-400 font-medium leading-relaxed">
+                    <h5 className="font-bold text-sm uppercase tracking-wider text-cyan-400 mb-1.5">AES-256 E2E</h5>
+                    <p className="text-xs text-slate-400 font-medium leading-relaxed">
                       All messages and files are encrypted client-side using WebCrypto keys.
                     </p>
                   </div>
 
                   {/* Card 2 */}
-                  <div className={`p-4 rounded-2xl border transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 hover:shadow-lg text-left group ${isDarkMode
+                  <div className={`p-5 rounded-2xl border transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 hover:shadow-lg text-left group ${isDarkMode
                     ? "bg-white/5 border-white/5 hover:border-indigo-500/30 hover:shadow-indigo-500/5 text-white"
                     : "bg-slate-50 border-slate-200 hover:border-indigo-400 hover:shadow-indigo-500/5 text-slate-800"
                     }`}>
-                    <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-400 w-fit mb-3 group-hover:scale-110 transition-transform">
-                      <Lock className="w-5 h-5" />
+                    <div className="p-2.5 rounded-xl bg-indigo-500/10 text-indigo-400 w-fit mb-4 group-hover:scale-110 transition-transform">
+                      <Lock className="w-6 h-6" />
                     </div>
-                    <h5 className="font-bold text-xs uppercase tracking-wider text-indigo-400 mb-1">Zero Logging</h5>
-                    <p className="text-[10px] text-slate-400 font-medium leading-relaxed">
+                    <h5 className="font-bold text-sm uppercase tracking-wider text-indigo-400 mb-1.5">Zero Logging</h5>
+                    <p className="text-xs text-slate-400 font-medium leading-relaxed">
                       No server persistence. Active keys are held purely in ephemeral state.
                     </p>
                   </div>
 
                   {/* Card 3 */}
-                  <div className={`p-4 rounded-2xl border transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 hover:shadow-lg text-left group ${isDarkMode
+                  <div className={`p-5 rounded-2xl border transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 hover:shadow-lg text-left group ${isDarkMode
                     ? "bg-white/5 border-white/5 hover:border-purple-500/30 hover:shadow-purple-500/5 text-white"
                     : "bg-slate-50 border-slate-200 hover:border-indigo-400 hover:shadow-indigo-500/5 text-slate-800"
                     }`}>
-                    <div className="p-2 rounded-xl bg-purple-500/10 text-purple-400 w-fit mb-3 group-hover:scale-110 transition-transform">
-                      <ServerCrash className="w-5 h-5" />
+                    <div className="p-2.5 rounded-xl bg-purple-500/10 text-purple-400 w-fit mb-4 group-hover:scale-110 transition-transform">
+                      <ServerCrash className="w-6 h-6" />
                     </div>
-                    <h5 className="font-bold text-xs uppercase tracking-wider text-purple-400 mb-1">DATA</h5>
-                    <p className="text-[10px] text-slate-400 font-medium leading-relaxed">
+                    <h5 className="font-bold text-sm uppercase tracking-wider text-purple-400 mb-1.5">DATA</h5>
+                    <p className="text-xs text-slate-400 font-medium leading-relaxed">
                       Peers share data directly when online. No central databases, no trace.
                     </p>
                   </div>
@@ -1501,12 +1501,12 @@ export default function App() {
                           href="https://www.linkedin.com/in/satyajit-pratihar"
                           target="_blank"
                           rel="noopener noreferrer"
-                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-[8px] font-black uppercase tracking-wider rounded-xl transition-all hover:scale-[1.03] active:scale-[0.97] cursor-pointer shadow-sm ${isDarkMode
+                          className={`inline-flex items-center gap-1.5 px-3.5 py-2 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all hover:scale-[1.03] active:scale-[0.97] cursor-pointer shadow-sm ${isDarkMode
                             ? "bg-slate-950/80 hover:bg-slate-950 border border-white/5 hover:border-cyan-400 text-cyan-400"
                             : "bg-slate-100 hover:bg-slate-200 border border-slate-200 text-indigo-600"
                             }`}
                         >
-                          <Linkedin className="w-3 h-3" />
+                          <Linkedin className="w-3.5 h-3.5" />
                           LinkedIn Profile
                         </a>
                       </div>
@@ -1514,23 +1514,23 @@ export default function App() {
 
                     {/* Right Column: Name, Tag, Skills list */}
                     <div className="flex-1 flex flex-col items-center md:items-start text-center md:text-left mt-2 md:mt-0">
-                      <p className="text-[9px] text-slate-500 dark:text-slate-400 uppercase tracking-widest font-black flex items-center gap-1.5 justify-center md:justify-start mb-1.5">
-                        <Code2 className="w-3 h-3 text-cyan-400" />
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-widest font-black flex items-center gap-1.5 justify-center md:justify-start mb-1.5">
+                        <Code2 className="w-3.5 h-3.5 text-cyan-400" />
                         Project Developer
                       </p>
 
-                      <h4 className="text-base font-black bg-gradient-to-r from-cyan-400 via-indigo-400 to-purple-400 bg-clip-text text-transparent uppercase tracking-wider leading-none">
+                      <h4 className="text-xl md:text-2xl font-black bg-gradient-to-r from-cyan-400 via-indigo-400 to-purple-400 bg-clip-text text-transparent uppercase tracking-wider leading-none mt-1">
                         Satyajit Pratihar
                       </h4>
 
-                      <div className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 shadow-sm animate-pulse">
-                        <GraduationCap className="w-3 h-3" />
-                        <span>GNIT - IT Student</span>
+                      <div className="inline-flex items-center gap-1.5 mt-2 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 shadow-sm animate-pulse">
+                        <GraduationCap className="w-3.5 h-3.5" />
+                        <span>GNIT(2024-28) - IT Student</span>
                       </div>
 
                       {/* Skills Grid */}
-                      <div className="mt-3 w-full border-t border-slate-200 dark:border-white/5 pt-3">
-                        <p className="text-[8px] text-slate-400 uppercase font-black tracking-wider mb-2">Expertise & Skills</p>
+                      <div className="mt-3.5 w-full border-t border-slate-200 dark:border-white/5 pt-3.5">
+                        <p className="text-[10px] text-slate-400 uppercase font-black tracking-wider mb-2">Expertise & Skills</p>
                         <div className="flex flex-wrap gap-1.5 justify-center md:justify-start">
                           {[
                             "ML",
@@ -1544,7 +1544,7 @@ export default function App() {
                           ].map((skill, idx) => (
                             <span
                               key={idx}
-                              className={`px-2 py-0.5 rounded-md text-[8px] font-extrabold uppercase tracking-tight border ${
+                              className={`px-2.5 py-1 rounded-md text-[10px] font-extrabold uppercase tracking-tight border ${
                                 isDarkMode
                                   ? skill === "And many more..."
                                     ? "bg-purple-950/20 border-purple-500/20 text-purple-300"
