@@ -1106,125 +1106,130 @@ export default function App() {
             }`}
         >
           {view === "home" && (
-            <div id="hero-view" className="text-center max-w-xl mx-auto space-y-10 animate-slide-up">
-              {/* Developer/App Credits Card */}
-              <div
-                id="developer-credits-card"
-                className={`relative overflow-hidden p-5 rounded-[2rem] border text-center transition-all duration-500 hover:scale-[1.03] hover:-translate-y-1 hover:shadow-xl max-w-sm mx-auto group ${
-                  isDarkMode
-                    ? "bg-gradient-to-br from-[#121216] via-indigo-950/15 to-[#1c1c24] border-cyan-500/25 shadow-md shadow-cyan-500/5 hover:border-cyan-400/50 hover:shadow-cyan-500/10"
-                    : "bg-gradient-to-br from-white via-indigo-50/20 to-purple-50/30 border-slate-200/80 shadow-sm hover:border-indigo-400 hover:shadow-indigo-500/10"
-                }`}
-              >
-                {/* Subtle Hover Radial Gradient Glow Effect */}
-                <div className="absolute -inset-24 bg-[radial-gradient(circle_at_center,rgba(6,182,212,0.15),transparent_60%)] opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-
-                {/* Floating sparkle icon header ornament */}
-                <div className="absolute top-4 right-4 text-cyan-400/40 group-hover:text-cyan-400 group-hover:rotate-12 transition-all duration-500">
-                  <Sparkles className="w-4 h-4 animate-pulse" />
-                </div>
-
-                <div className="relative z-10 flex flex-col items-center">
-                  <p className="text-[9px] text-slate-500 dark:text-slate-400 uppercase tracking-widest font-black flex items-center gap-1.5 justify-center mb-1">
-                    <Code2 className="w-3 h-3 text-cyan-400" />
-                    Project Developer
+            <div id="hero-view" className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-16 items-center text-center lg:text-left max-w-5xl mx-auto animate-slide-up py-4 md:py-8 w-full">
+              {/* Left Side: Heading, Info, and Notice */}
+              <div className="lg:col-span-7 flex flex-col items-center lg:items-start text-center lg:text-left space-y-6">
+                <div id="hero-heading" className="space-y-4">
+                  <h2 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tight leading-tight">
+                    Connect Instantly with <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-indigo-400 to-purple-400">Secure QR Codes</span>
+                  </h2>
+                  <p className="text-sm md:text-base text-slate-400 leading-relaxed max-w-lg mx-auto lg:mx-0">
+                    A modern, secure E2E platform for sharing messages and files instantly. Zero logging, zero sign-ups, and absolute privacy.
                   </p>
-                  
-                  <h4 className="text-base md:text-lg font-black bg-gradient-to-r from-cyan-400 via-indigo-400 to-purple-400 bg-clip-text text-transparent uppercase tracking-wider leading-none">
-                    Satyajit Pratihar
-                  </h4>
-                  
-                  <div className="inline-flex items-center gap-1 mt-1 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 shadow-sm animate-pulse">
-                    <GraduationCap className="w-3.5 h-3.5" />
-                    <span>GNIT - IT Student</span>
-                  </div>
+                </div>
 
-                  {/* Creative details section */}
-                  <div className="mt-3.5 w-full border-t border-slate-200 dark:border-white/5 pt-3.5 space-y-1.5 text-left text-[10px] text-slate-600 dark:text-slate-400 font-semibold max-w-[240px]">
-                    <p className="flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shrink-0"></span>
-                      <span className="truncate">Guru Nanak Institute of Technology</span>
-                    </p>
-                    <p className="flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 shrink-0"></span>
-                      <span>Frontend & Mobile App Developer</span>
-                    </p>
-                    <p className="flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-purple-400 shrink-0"></span>
-                      <span>Secure Web Application Builder</span>
-                    </p>
-                  </div>
-
-                  {/* Actions/Social Footer */}
-                  <div className="mt-4 flex justify-center w-full gap-2">
-                    <a
-                      href="https://github.com/satyajitpratihar07"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-[9px] font-black uppercase tracking-wider rounded-xl transition-all hover:scale-[1.03] active:scale-[0.97] cursor-pointer shadow-sm ${
-                        isDarkMode
-                          ? "bg-slate-950/80 hover:bg-slate-950 border border-white/5 hover:border-cyan-400 text-cyan-400"
-                          : "bg-slate-100 hover:bg-slate-200 border border-slate-200 text-indigo-600"
-                      }`}
-                    >
-                      <Github className="w-3.5 h-3.5" />
-                      GitHub Profile
-                    </a>
-                  </div>
+                {/* Development Notice Banner */}
+                <div id="dev-notice-banner" className="max-w-md p-4 rounded-3xl border text-sm font-semibold flex items-center justify-center lg:justify-start gap-2.5 shadow-sm bg-amber-500/10 border-amber-500/20 text-amber-500">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>Notice: Some features are under active development.</span>
                 </div>
               </div>
 
-              <div id="hero-heading" className="space-y-4">
-                <h2 className="text-3xl md:text-5xl font-black tracking-tight leading-tight">
-                  Connect Instantly with <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-500">Secure QR Codes</span>
-                </h2>
-                <p className="text-sm md:text-base text-slate-400 leading-relaxed max-w-lg mx-auto">
-                  A modern, secure E2E platform for sharing messages and files instantly. Zero logging, zero sign-ups, and absolute privacy.
-                </p>
-              </div>
+              {/* Right Side: Action Buttons & Developer Credits Stacked */}
+              <div className="lg:col-span-5 flex flex-col gap-6 w-full max-w-md mx-auto">
+                <div id="action-buttons-grid" className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full select-none">
+                  <button
+                    id="btn-generate-flow"
+                    onClick={handleCreateRoom}
+                    className="flex flex-col items-center gap-4 p-6 rounded-[2rem] border transition-all duration-300 cursor-pointer bg-gradient-to-tr from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white shadow-xl shadow-cyan-500/10 border-white/5 hover:scale-[1.02] group"
+                  >
+                    <div className="p-4 rounded-2xl bg-white/10 text-white">
+                      <QrCode className="w-8 h-8 group-hover:rotate-6 transition-transform" />
+                    </div>
+                    <div className="text-center">
+                      <h4 className="font-bold text-base">Create Chat</h4>
+                      <p className="text-[11px] text-cyan-100/80 mt-1">
+                        Start a new group chat room instantly
+                      </p>
+                    </div>
+                  </button>
 
-              {/* Development Notice Banner */}
-              <div id="dev-notice-banner" className="max-w-md mx-auto p-4 rounded-3xl border text-sm font-semibold flex items-center justify-center gap-2.5 shadow-sm transition-colors duration-300 bg-amber-500/10 border-amber-500/20 text-amber-500">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                <span>Notice: Some features are under active development.</span>
-              </div>
+                  <button
+                    id="btn-scan-flow"
+                    onClick={() => setView("scan")}
+                    className={`flex flex-col items-center gap-4 p-6 rounded-[2rem] border transition-all duration-300 cursor-pointer hover:scale-[1.02] group ${isDarkMode
+                      ? "bg-white/5 border-white/5 hover:border-cyan-500/30 hover:bg-white/10 text-white"
+                      : "bg-white border-slate-200 hover:border-indigo-600 hover:bg-slate-50 text-slate-800"
+                      }`}
+                  >
+                    <div className="p-4 rounded-2xl bg-cyan-500/10 text-cyan-400">
+                      <ScanLine className="w-8 h-8 group-hover:scale-110 transition-transform" />
+                    </div>
+                    <div className="text-center">
+                      <h4 className="font-bold text-base">Join Chat</h4>
+                      <p className="text-[11px] text-slate-400 mt-1">
+                        Scan QR or enter 6-digit invite code
+                      </p>
+                    </div>
+                  </button>
+                </div>
 
-              {/* Centered Large Action Buttons */}
-              <div id="action-buttons-grid" className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-md mx-auto select-none">
-                <button
-                  id="btn-generate-flow"
-                  onClick={handleCreateRoom}
-                  className="flex flex-col items-center gap-4 p-6 rounded-[2rem] border transition-all duration-300 cursor-pointer bg-gradient-to-tr from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white shadow-xl shadow-cyan-500/10 border-white/5 hover:scale-[1.02] group"
+                {/* Developer/App Credits Card */}
+                <div
+                  id="developer-credits-card"
+                  className={`relative overflow-hidden p-5 rounded-[2rem] border text-center transition-all duration-500 hover:scale-[1.03] hover:-translate-y-1 hover:shadow-xl w-full group ${
+                    isDarkMode
+                      ? "bg-gradient-to-br from-[#121216] via-indigo-950/15 to-[#1c1c24] border-cyan-500/25 shadow-md shadow-cyan-500/5 hover:border-cyan-400/50 hover:shadow-cyan-500/10"
+                      : "bg-gradient-to-br from-white via-indigo-50/20 to-purple-50/30 border-slate-200/80 shadow-sm hover:border-indigo-400 hover:shadow-indigo-500/10"
+                  }`}
                 >
-                  <div className="p-4 rounded-2xl bg-white/10 text-white">
-                    <QrCode className="w-8 h-8 group-hover:rotate-6 transition-transform" />
-                  </div>
-                  <div className="text-center">
-                    <h4 className="font-bold text-base">Create Chat</h4>
-                    <p className="text-[11px] text-cyan-100/80 mt-1">
-                      Start a new group chat room instantly
-                    </p>
-                  </div>
-                </button>
+                  {/* Subtle Hover Radial Gradient Glow Effect */}
+                  <div className="absolute -inset-24 bg-[radial-gradient(circle_at_center,rgba(6,182,212,0.15),transparent_60%)] opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
 
-                <button
-                  id="btn-scan-flow"
-                  onClick={() => setView("scan")}
-                  className={`flex flex-col items-center gap-4 p-6 rounded-[2rem] border transition-all duration-300 cursor-pointer hover:scale-[1.02] group ${isDarkMode
-                    ? "bg-white/5 border-white/5 hover:border-cyan-500/30 hover:bg-white/10 text-white"
-                    : "bg-white border-slate-200 hover:border-indigo-600 hover:bg-slate-50 text-slate-800"
-                    }`}
-                >
-                  <div className="p-4 rounded-2xl bg-cyan-500/10 text-cyan-400">
-                    <ScanLine className="w-8 h-8 group-hover:scale-110 transition-transform" />
+                  {/* Floating sparkle icon header ornament */}
+                  <div className="absolute top-4 right-4 text-cyan-400/40 group-hover:text-cyan-400 group-hover:rotate-12 transition-all duration-500">
+                    <Sparkles className="w-4 h-4 animate-pulse" />
                   </div>
-                  <div className="text-center">
-                    <h4 className="font-bold text-base">Join Chat</h4>
-                    <p className="text-[11px] text-slate-400 mt-1">
-                      Scan QR or enter 6-digit invite code
+
+                  <div className="relative z-10 flex flex-col items-center">
+                    <p className="text-[9px] text-slate-500 dark:text-slate-400 uppercase tracking-widest font-black flex items-center gap-1.5 justify-center mb-1">
+                      <Code2 className="w-3 h-3 text-cyan-400" />
+                      Project Developer
                     </p>
+                    
+                    <h4 className="text-sm md:text-base font-black bg-gradient-to-r from-cyan-400 via-indigo-400 to-purple-400 bg-clip-text text-transparent uppercase tracking-wider leading-none">
+                      Satyajit Pratihar
+                    </h4>
+                    
+                    <div className="inline-flex items-center gap-1 mt-1 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 shadow-sm animate-pulse">
+                      <GraduationCap className="w-3.5 h-3.5" />
+                      <span>GNIT - IT Student</span>
+                    </div>
+
+                    {/* Creative details section */}
+                    <div className="mt-3.5 w-full border-t border-slate-200 dark:border-white/5 pt-3.5 space-y-1.5 text-left text-[10px] text-slate-600 dark:text-slate-400 font-semibold max-w-[240px]">
+                      <p className="flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shrink-0"></span>
+                        <span className="truncate">Guru Nanak Institute of Technology</span>
+                      </p>
+                      <p className="flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 shrink-0"></span>
+                        <span>Frontend & Mobile App Developer</span>
+                      </p>
+                      <p className="flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-purple-400 shrink-0"></span>
+                        <span>Secure Web Application Builder</span>
+                      </p>
+                    </div>
+
+                    {/* Actions/Social Footer */}
+                    <div className="mt-4 flex justify-center w-full gap-2">
+                      <a
+                        href="https://github.com/satyajitpratihar07"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-[9px] font-black uppercase tracking-wider rounded-xl transition-all hover:scale-[1.03] active:scale-[0.97] cursor-pointer shadow-sm ${
+                          isDarkMode
+                            ? "bg-slate-950/80 hover:bg-slate-950 border border-white/5 hover:border-cyan-400 text-cyan-400"
+                            : "bg-slate-100 hover:bg-slate-200 border border-slate-200 text-indigo-600"
+                        }`}
+                      >
+                        <Github className="w-3.5 h-3.5" />
+                        GitHub Profile
+                      </a>
+                    </div>
                   </div>
-                </button>
+                </div>
               </div>
             </div>
           )}
