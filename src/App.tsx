@@ -93,17 +93,17 @@ export default function App() {
       let reply = "";
 
       if (lower.includes("create") || lower.includes("start") || lower.includes("room")) {
-        reply = "💡 **To Start a New Chat:**\n\n1. Click the **'Create Chat'** button on the home screen.\n2. A dynamic **QR Code** and a **6-digit Invite Code** will be generated.\n3. Show the QR code to your friend (they can scan it) or copy/send the 6-digit code to pair instantly!";
+        reply = "💡 To Start a New Chat:\n\n1. Click the 'Create Chat' button on the home screen.\n2. A dynamic QR Code and a 6-digit Invite Code will be generated.\n3. Share the QR code or send the 6-digit code to pair instantly!";
       } else if (lower.includes("join") || lower.includes("scan") || lower.includes("enter")) {
-        reply = "📲 **To Join an Existing Chat:**\n\n1. Click the **'Join Chat'** button on the home screen.\n2. Scan your friend's room QR code using your device camera, or click **'Enter Code'** and enter their 6-digit Invite Code.\n3. Wait for the host to click 'Approve' to securely enter the chat!";
+        reply = "📲 To Join an Existing Chat:\n\n1. Click the 'Join Chat' button on the home screen.\n2. Scan your friend's QR code using your camera, or enter their 6-digit Invite Code.\n3. Wait for the host to approve you to securely enter the chat!";
       } else if (lower.includes("security") || lower.includes("encrypt") || lower.includes("safe") || lower.includes("private") || lower.includes("webrtc")) {
-        reply = "🔒 **Security & Privacy Architecture:**\n\n- **Client-Side E2E Encryption:** All messages and files are encrypted with AES-GCM 256 using keys stored locally in the browser.\n- **Zero Logs:** We store no messages, metadata, or IPs. Ephemeral database records exist only to connect peers and are wiped completely.\n- **Direct Peer-to-Peer:** Uses WebRTC so your data is sent directly between browser endpoints whenever possible.";
+        reply = "🔒 Security & Privacy Architecture:\n\n- Client-Side E2E Encryption: All messages and files are encrypted with AES-GCM 256 using keys stored locally in the browser.\n- Zero Logs: We store no messages, metadata, or IPs. Ephemeral database records are wiped completely when you close the session.\n- Direct Peer-to-Peer: Uses WebRTC so your data is sent directly between browser endpoints whenever possible.";
       } else if (lower.includes("button") || lower.includes("function") || lower.includes("how work")) {
-        reply = "⚙️ **App Functions & Buttons Explained:**\n\n- **Create Chat:** Launches a new host room.\n- **Join Chat:** Launches scanner to scan code.\n- **Theme Switcher (Sun/Moon):** Changes dark/light modes.\n- **Credits Card:** Highlights project author **Satyajit Pratihar** (GNIT IT Student).\n- **Copy Button (inside chat):** Copies selected messages or codes exactly as formatted.";
+        reply = "⚙️ App Functions & Buttons Explained:\n\n- Create Chat: Launches a new host room.\n- Join Chat: Opens scanner to join.\n- Theme Switcher (Sun/Moon): Changes dark/light modes.\n- Credits Card: Highlights project author Satyajit Pratihar (GNIT - IT Student).\n- Copy Button (inside chat): Copies selected messages exactly as formatted.";
       } else if (lower.includes("file") || lower.includes("share") || lower.includes("send")) {
-        reply = "📎 **To Share Files Securely:**\n\n1. Inside the chat room, click the **'+ File'** button near the text input field.\n2. Choose any file (images, PDFs, documents up to WebRTC limits).\n3. The file is split into chunks, encrypted, and streamed directly to your peers.";
+        reply = "📎 To Share Files Securely:\n\n1. Inside the chat room, click the '+ File' button near the input field.\n2. Choose any file (images, PDFs, documents, etc.).\n3. The file is split into chunks, encrypted, and sent directly to your peers.";
       } else {
-        reply = "🤖 I'm here to guide you! Try asking:\n\n- *'How to create a chat?'*\n- *'How to join a room?'*\n- *'Tell me about the security and encryption.'*\n- *'Explain what the buttons do.'*\n- *'How to share files?'*";
+        reply = "🤖 I'm here to guide you! Try asking:\n\n- How to create a chat?\n- How to join a room?\n- Tell me about security and encryption.\n- Explain what the buttons do.\n- How to share files?";
       }
 
       setBotMessages((prev) => [
@@ -1595,7 +1595,7 @@ export default function App() {
           </div>
 
           {/* Quick Suggestion Chips */}
-          <div className={`px-4 py-2 flex flex-wrap gap-1.5 border-t ${
+          <div className={`px-4 pt-3 pb-4 flex flex-wrap gap-1.5 border-t ${
             isDarkMode ? "border-white/5 bg-[#090b10]" : "border-slate-100 bg-slate-50"
           }`}>
             {[
@@ -1617,36 +1617,6 @@ export default function App() {
                 {q}
               </button>
             ))}
-          </div>
-
-          {/* Input Panel */}
-          <div className={`p-3 border-t flex items-center gap-2 ${
-            isDarkMode ? "border-white/5 bg-[#121218]/40" : "border-slate-100 bg-slate-50/20"
-          }`}>
-            <input
-              type="text"
-              value={botInput}
-              onChange={(e) => setBotInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleSendBotMessage(botInput);
-              }}
-              placeholder="Type guide questions (e.g. secure, buttons)..."
-              className={`flex-grow px-3.5 py-2.5 rounded-xl text-[11px] font-semibold border outline-none transition-all ${
-                isDarkMode
-                  ? "bg-slate-950/80 border-white/10 text-white focus:border-cyan-500/50 focus:bg-slate-950"
-                  : "bg-white border-slate-200 text-slate-800 focus:border-indigo-500 focus:bg-white"
-              }`}
-            />
-            <button
-              onClick={() => handleSendBotMessage(botInput)}
-              className={`p-2.5 rounded-xl border flex items-center justify-center transition-all cursor-pointer hover:scale-[1.03] active:scale-[0.97] ${
-                isDarkMode
-                  ? "bg-cyan-500/10 hover:bg-cyan-500 border-cyan-500/20 hover:border-cyan-400 text-cyan-400 hover:text-white shadow-cyan-500/5"
-                  : "bg-indigo-50 hover:bg-indigo-600 border-indigo-100 hover:border-indigo-500 text-indigo-600 hover:text-white"
-              }`}
-            >
-              <Send className="w-3.5 h-3.5" />
-            </button>
           </div>
         </div>
       </div>
