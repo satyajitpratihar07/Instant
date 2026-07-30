@@ -53,96 +53,111 @@ function generateRandomName(): string {
   return "User";
 }
 
+interface StarParticle {
+  id: number;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  size: number;
+  color: string;
+  maxLife: number;
+  life: number;
+}
+
 const CustomCursor: React.FC = () => {
-  const [position, setPosition] = useState({ x: 0, y: 0 });
-  const [trail, setTrail] = useState({ x: 0, y: 0, angle: 0, stretch: 0 });
-  const [isHovered, setIsHovered] = useState(false);
-  const [isClicked, setIsClicked] = useState(false);
-  const [isVisible, setIsVisible] = useState(false);
+  const [stars, setStars] = useState<StarParticle[]>([]);
+  const lastPosition = useRef({ x: 0, y: 0 });
+  const requestRef = useRef<number | null>(null);
 
   useEffect(() => {
+    const colors = [
+      "text-cyan-400 shadow-cyan-400/50",
+      "text-indigo-400 shadow-indigo-400/50",
+      "text-purple-400 shadow-purple-400/50",
+      "text-emerald-400 shadow-emerald-400/50",
+      "text-pink-400 shadow-pink-400/50"
+    ];
+
     const handleMouseMove = (e: MouseEvent) => {
-      setPosition({ x: e.clientX, y: e.clientY });
-      setIsVisible(true);
-    };
+      // Calculate distance moved
+      const dx = e.clientX - lastPosition.current.x;
+      const dy = e.clientY - lastPosition.current.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
 
-    const handleMouseDown = () => setIsClicked(true);
-    const handleMouseUp = () => setIsClicked(false);
+      // Only spawn a star if mouse moved more than 8 pixels
+      if (dist > 8) {
+        const newStar: StarParticle = {
+          id: Date.now() + Math.random(),
+          x: e.clientX,
+          y: e.clientY,
+          // Random velocity heading outwards
+          vx: (Math.random() - 0.5) * 2,
+          vy: (Math.random() - 0.5) * 2 - 1, // slight upward drift initially
+          size: Math.random() * 8 + 8, // 8px to 16px
+          color: colors[Math.floor(Math.random() * colors.length)],
+          maxLife: 35, // frames
+          life: 35
+        };
 
-    const handleMouseOver = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (
-        target.tagName === "BUTTON" ||
-        target.tagName === "A" ||
-        target.closest("button") ||
-        target.closest("a") ||
-        target.classList.contains("cursor-pointer")
-      ) {
-        setIsHovered(true);
-      } else {
-        setIsHovered(false);
+        setStars((prev) => [...prev.slice(-30), newStar]); // Keep at most 30 active stars
+        lastPosition.current = { x: e.clientX, y: e.clientY };
       }
     };
 
     window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mousedown", handleMouseDown);
-    window.addEventListener("mouseup", handleMouseUp);
-    window.addEventListener("mouseover", handleMouseOver);
-
     return () => {
       window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mousedown", handleMouseDown);
-      window.removeEventListener("mouseup", handleMouseUp);
-      window.removeEventListener("mouseover", handleMouseOver);
     };
   }, []);
 
-  const requestRef = useRef<number | null>(null);
+  // Update particles positions and fade in requestAnimationFrame
   useEffect(() => {
-    const animateTrail = () => {
-      setTrail((prev) => {
-        const dx = position.x - prev.x;
-        const dy = position.y - prev.y;
-        const speed = Math.sqrt(dx * dx + dy * dy);
-        
-        // Calculate raw velocity angle and stretch
-        const rawAngle = Math.atan2(dy, dx) * (180 / Math.PI);
-        const rawStretch = Math.min(speed * 0.04, 0.4);
-
-        // Smoothly interpolate angle to avoid sudden jumps when stationary
-        const angle = speed > 2 ? rawAngle : prev.angle;
-        
-        // Return interpolated position and stretch values
-        return {
-          x: prev.x + dx * 0.15,
-          y: prev.y + dy * 0.15,
-          angle: angle,
-          stretch: prev.stretch + (rawStretch - prev.stretch) * 0.15
-        };
-      });
-      requestRef.current = requestAnimationFrame(animateTrail);
+    const updateStars = () => {
+      setStars((prev) =>
+        prev
+          .map((star) => ({
+            ...star,
+            x: star.x + star.vx,
+            y: star.y + star.vy + 0.1, // slight gravity
+            life: star.life - 1,
+            // slow down horizontal movement
+            vx: star.vx * 0.98,
+            vy: star.vy * 0.98
+          }))
+          .filter((star) => star.life > 0)
+      );
+      requestRef.current = requestAnimationFrame(updateStars);
     };
-    requestRef.current = requestAnimationFrame(animateTrail);
+    requestRef.current = requestAnimationFrame(updateStars);
     return () => {
       if (requestRef.current) cancelAnimationFrame(requestRef.current);
     };
-  }, [position]);
-
-  if (!isVisible) return null;
+  }, []);
 
   return (
     <>
-      {/* Trailing Outer Ring with stretch motion animation */}
-      <div
-        className={`fixed top-0 left-0 rounded-full pointer-events-none z-[99998] -translate-x-1/2 -translate-y-1/2 hidden md:block transition-all duration-300 ${
-          isHovered 
-            ? "w-12 h-12 border-2 border-cyan-400 bg-cyan-400/10 shadow-[0_0_20px_rgba(6,182,212,0.25)] scale-110" 
-            : "w-8 h-8 border border-indigo-400/25 bg-indigo-500/5 shadow-[0_0_10px_rgba(99,102,241,0.08)]"
-        }`}
-        style={{
-          transform: `translate3d(${trail.x}px, ${trail.y}px, 0) rotate(${trail.angle}deg) scaleX(${1 + trail.stretch}) scaleY(${1 - trail.stretch}) scale(${isClicked ? 0.8 : 1})`
-        }}
-      />
+      {stars.map((star) => {
+        const opacity = star.life / star.maxLife;
+        const scale = 0.5 + (star.life / star.maxLife) * 0.5;
+        return (
+          <div
+            key={star.id}
+            className={`fixed pointer-events-none z-[99999] -translate-x-1/2 -translate-y-1/2 transition-opacity duration-75 ${star.color} hidden md:block`}
+            style={{
+              left: `${star.x}px`,
+              top: `${star.y}px`,
+              width: `${star.size}px`,
+              height: `${star.size}px`,
+              opacity: opacity,
+              transform: `translate3d(-50%, -50%, 0) scale(${scale})`,
+              filter: `drop-shadow(0 0 4px currentColor)`
+            }}
+          >
+            <Sparkles style={{ width: "100%", height: "100%" }} />
+          </div>
+        );
+      })}
     </>
   );
 };
