@@ -110,59 +110,87 @@ export default function App() {
     setBotInput("");
 
     setTimeout(() => {
-      const lower = text.toLowerCase();
       let reply = "";
 
-      if (lower.includes("create") || lower.includes("start") || lower.includes("room")) {
-        reply = "💡 To Start a New Chat:\n\n1. Click the 'Create Chat' button on the home screen.\n2. A dynamic QR Code and a 6-digit Invite Code will be generated.\n3. Share the QR code or send the 6-digit code to pair instantly!";
-      } else if (lower.includes("join") || lower.includes("scan") || lower.includes("enter")) {
-        reply = "📲 To Join an Existing Chat:\n\n1. Click the 'Join Chat' button on the home screen.\n2. Scan your friend's QR code using your camera, or enter their 6-digit Invite Code.\n3. Wait for the host to approve you to securely enter the chat!";
-      } else if (lower.includes("security") || lower.includes("encrypt") || lower.includes("safe") || lower.includes("private")) {
-        reply = "🔒 Security & Privacy Architecture:\n\n- Client-Side E2E Encryption: All messages and files are encrypted with AES-GCM 256 using keys stored locally in the browser.\n- Zero Logs: We store no messages, metadata, or IPs. Ephemeral database records are wiped completely when you close the session.\n- Direct Peer-to-Peer: Uses WebRTC so your data is sent directly between browser endpoints whenever possible.";
-      } else if (lower.includes("button") || lower.includes("function") || lower.includes("how work")) {
-        reply = "⚙️ App Functions & Buttons Explained:\n\n- Create Chat: Launches a new host room.\n- Join Chat: Opens scanner to join.\n- Theme Switcher (Sun/Moon): Changes dark/light modes.\n- Credits Card: Highlights project author Satyajit Pratihar (GNIT - IT Student).\n- Copy Button (inside chat): Copies selected messages exactly as formatted.";
-      } else if (lower.includes("file") || lower.includes("share") || lower.includes("send")) {
-        reply = "📎 To Share Files Securely:\n\n1. Inside the chat room, click the '+ File' button near the input field.\n2. Choose any file (images, PDFs, documents, etc.).\n3. The file is split into chunks, encrypted, and sent directly to your peers.";
-      } else if (lower.includes("pairing qr") || lower.includes("pairing info")) {
-        reply = "🔗 QR Pairing Info:\n\nThe QR code contains the temporary room session ID and the secret WebCrypto key (after the hash). When a guest scans the QR code, their browser extracts the key and connects directly via the signal broker to pair securely.";
-      } else if (lower.includes("e2e work")) {
-        reply = "🔒 How E2E Encryption Works:\n\n- The browser generates an AES-GCM 256-bit symmetric key.\n- Messages are encrypted client-side using this key before leaving the browser.\n- Only people who scanned/entered the room code have the key, so only they can read the chats.";
-      } else if (lower.includes("webrtc")) {
-        reply = "⚡ What is WebRTC:\n\nWebRTC (Web Real-Time Communication) is a browser technology that allows direct peer-to-peer data transfer without sending data through a middleman server.";
-      } else if (lower.includes("who is developer") || lower.includes("developer")) {
-        reply = "👨‍💻 About the Developer:\n\nDeveloped by Satyajit Pratihar, an IT Student at Guru Nanak Institute of Technology (GNIT), who builds secure, modern, and high-performance web applications.";
-      } else if (lower.includes("free to use")) {
-        reply = "🆓 Yes! Instant is 100% free, open-source, and does not contain ads, paywalls, or registrations.";
-      } else if (lower.includes("store files")) {
-        reply = "📂 File Storage Policy:\n\nInstant does NOT store files. Files are encrypted, transferred directly peer-to-peer, and are completely removed from existence once the chat session closes.";
-      } else if (lower.includes("add peer")) {
-        reply = "➕ How to add another Peer:\n\nSimply click the 'QR Code' icon in the chat header to display the room QR code again, and let another person scan it to join.";
-      } else if (lower.includes("close room")) {
-        reply = "✖ How to close the room:\n\nClick the exit door button in the top header. If you are the Host, this will disconnect all peers and wipe all database references.";
-      } else if (lower.includes("ephemeral")) {
-        reply = "⏳ What is Ephemeral:\n\n'Ephemeral' means short-lived. Your chat session only exists as long as your browser tab is open. There is no permanent storage, search history, or server log.";
-      } else if (lower.includes("mobile")) {
-        reply = "📱 Mobile Support:\n\nYes! Instant is fully responsive and optimized for mobile screens, tablets, and desktops. You can scan QR codes using your phone's camera.";
-      } else if (lower.includes("dark mode")) {
-        reply = "🌗 How to toggle Dark Mode:\n\nClick the Sun/Moon icon in the top header of the landing page or the chat room to switch between dark and light themes.";
-      } else if (lower.includes("registration needed")) {
-        reply = "🚫 No Registration:\n\nYou do not need an email, phone number, or password. Simply generate a session and start sharing instantly.";
-      } else if (lower.includes("send messages")) {
-        reply = "💬 How to send messages:\n\nType your message in the chat input bar and hit Enter or click the Send button. All messages are encrypted instantly.";
-      } else if (lower.includes("host read chats")) {
-        reply = "👁 Can the Host read my chats?\n\nThe Host has the same decryption key as other participants. However, nobody outside the active session room can read or intercept the messages.";
-      } else if (lower.includes("host leaves")) {
-        reply = "🚪 What if the Host leaves?\n\nIf the Host leaves, the database references are deleted, and all guests are notified that the room is offline to ensure absolute privacy.";
-      } else if (lower.includes("chats encrypted")) {
-        reply = "🔐 Are all chats encrypted?\n\nYes! Every single message, file, and system notification is fully encrypted inside your browser before transmitting.";
-      } else if (lower.includes("offline")) {
-        reply = "🔌 Does it work offline?\n\nIt requires an internet connection to pair peers via the signaling database initially, but after establishing WebRTC, direct peer data transfer is localized.";
-      } else if (lower.includes("file sizes")) {
-        reply = "📦 Supported File Sizes:\n\nInstant supports sharing files of varying sizes (up to 50MB-100MB depending on your browser's WebRTC buffer limits).";
-      } else if (lower.includes("firebase role")) {
-        reply = "🔥 What is Firebase's role?\n\nFirebase Realtime Database acts purely as an ephemeral signaling channel to exchange WebRTC session descriptions. It holds zero unencrypted data.";
-      } else {
-        reply = "🤖 I'm here to guide you! Try asking:\n\n- How to create a chat?\n- How to join a room?\n- Tell me about security and encryption.\n- Explain what the buttons do.\n- How to share files?";
+      switch (text) {
+        case "How to create chat?":
+          reply = "💡 How to Create a Chat Room:\n\n1. On the home page, click the 'Create Chat' button.\n2. You will instantly generate a new room. A pairing QR Code and a 6-digit Invite Code will appear on the screen.\n3. Keep this screen open. Share the QR code or send the 6-digit Invite Code to the person you want to pair with.";
+          break;
+        case "How to join?":
+          reply = "📲 How to Join an Existing Chat Room:\n\n1. On the home page, click the 'Join Chat' button.\n2. This opens your camera to scan the host's room QR Code. If you cannot scan, click 'Enter Code' and type the host's 6-digit Invite Code.\n3. Once submitted, wait a moment for a member in the chat room to click 'Approve' to securely authorize your entry.";
+          break;
+        case "Is it secure?":
+          reply = "🛡️ Is Instant Secure?\n\nYes, absolutely. Instant is designed with privacy-first architecture. It features client-side End-to-End Encryption (E2E), stores zero message logs on servers, and sends messages directly peer-to-peer using WebRTC. Even if signaling databases are compromised, no one can decrypt your messages without the secret pairing key.";
+          break;
+        case "Explain buttons":
+          reply = "⚙️ Home Screen Buttons Explained:\n\n- Create Chat: Launches a new host session and generates invite keys.\n- Join Chat: Activates the scanner/input code reader to join a room.\n- Sun/Moon (Header): Toggles between light mode and dark mode.\n- Active/Offline Status: Indicates if your client is connected to signaling servers.\n- Developed By Card: Displays details and GitHub link for the developer Satyajit Pratihar.";
+          break;
+        case "File sharing guide":
+          reply = "📎 File Sharing Guide:\n\n1. Inside the chat room, click the '+ File' button next to the message input box.\n2. Select the file you want to share. The file is split into chunks, encrypted client-side using AES-GCM 256, and streamed directly peer-to-peer.\n3. The recipient's browser receives the chunks, decrypts them, and compiles them back into a downloadable file.";
+          break;
+        case "How to pairing QR?":
+          reply = "🔗 How QR Pairing Works:\n\nThe QR code contains the temporary room session ID and the secret WebCrypto key (after the '#' hash character). When a guest scans the QR code, their browser extracts the decryption key and connects directly via signaling to establish a WebRTC connection.";
+          break;
+        case "How does E2E work?":
+          reply = "🔐 How E2E Encryption Works:\n\n- Your browser generates an AES-GCM 256-bit symmetric key.\n- Messages are encrypted client-side using this key before leaving the browser.\n- Only people who scanned/entered the room code have the key, so only they can read the chats.";
+          break;
+        case "What is WebRTC?":
+          reply = "⚡ What is WebRTC?\n\nWebRTC (Web Real-Time Communication) is a browser technology that allows direct peer-to-peer data transfer without sending data through a middleman server.";
+          break;
+        case "Who is developer?":
+          reply = "👨‍💻 About the Developer:\n\nDeveloped by Satyajit Pratihar, an IT Student at Guru Nanak Institute of Technology (GNIT), who builds secure, modern, and high-performance web applications.";
+          break;
+        case "Is it free to use?":
+          reply = "🆓 Yes! Instant is 100% free, open-source, and does not contain ads, paywalls, or registrations.";
+          break;
+        case "Does it store files?":
+          reply = "📂 File Storage Policy:\n\nInstant does NOT store files. Files are encrypted, transferred directly peer-to-peer, and are completely removed from existence once the chat session closes.";
+          break;
+        case "How to add peer?":
+          reply = "➕ How to add another Peer:\n\nSimply click the 'QR Code' icon in the chat header or sidebar to display the room QR code again, and let another person scan it to join.";
+          break;
+        case "How to close room?":
+          reply = "✖ How to close the room:\n\nClick the exit door button in the top header. If you are the Host, this will disconnect all peers and wipe all database references.";
+          break;
+        case "What is ephemeral?":
+          reply = "⏳ What is Ephemeral:\n\n'Ephemeral' means short-lived. Your chat session only exists as long as your browser tab is open. There is no permanent storage, search history, or server log.";
+          break;
+        case "Can I use on mobile?":
+          reply = "📱 Mobile Support:\n\nYes! Instant is fully responsive and optimized for mobile screens, tablets, and desktops. You can scan QR codes using your phone's camera.";
+          break;
+        case "How to toggle dark mode?":
+          reply = "🌗 How to toggle Dark Mode:\n\nClick the Sun/Moon icon in the top header of the landing page or the chat room to switch between dark and light themes.";
+          break;
+        case "Is registration needed?":
+          reply = "🚫 No Registration:\n\nYou do not need an email, phone number, or password. Simply generate a session and start sharing instantly.";
+          break;
+        case "How to send messages?":
+          reply = "💬 How to send messages:\n\nType your message in the chat input bar and hit Enter or click the Send button. All messages are encrypted instantly.";
+          break;
+        case "Can host read chats?":
+          reply = "👁 Can the Host read my chats?\n\nThe Host has the same decryption key as other participants. However, nobody outside the active session room can read or intercept the messages.";
+          break;
+        case "What if host leaves?":
+          reply = "🚪 What if the Host leaves?\n\nIf the Host leaves, the database references are deleted, and all guests are notified that the room is offline to ensure absolute privacy.";
+          break;
+        case "Are chats encrypted?":
+          reply = "🔐 Are all chats encrypted?\n\nYes! Every single message, file, and system notification is fully encrypted inside your browser before transmitting.";
+          break;
+        case "Does it work offline?":
+          reply = "🔌 Does it work offline?\n\nIt requires an internet connection to pair peers via the signaling database initially, but after establishing WebRTC, direct peer data transfer is localized.";
+          break;
+        case "Supported file sizes?":
+          reply = "📦 Supported File Sizes:\n\nInstant supports sharing files of varying sizes (up to 50MB-100MB depending on your browser's WebRTC buffer limits).";
+          break;
+        case "What is Firebase role?":
+          reply = "🔥 What is Firebase's role?\n\nFirebase Realtime Database acts purely as an ephemeral signaling channel to exchange WebRTC session descriptions. It holds zero unencrypted data.";
+          break;
+        case "Instant QR pairing info":
+          reply = "🔗 Instant QR Pairing Info:\n\nThe pairing QR code contains details like room session ID and the WebCrypto secret key. This key does not upload to database logs, ensuring your connection security.";
+          break;
+        default:
+          reply = "🤖 I'm here to guide you! Click any of the options below to learn how the app works, what the buttons do, or check its security.";
+          break;
       }
 
       setBotMessages((prev) => [
@@ -674,7 +702,7 @@ export default function App() {
             const roomData = roomSnap.val();
             const createdTime = roomData.createdTime || Date.now();
             const expiresAt = roomData.expiresAt || (createdTime + 3 * 60 * 60 * 1000);
-            
+
             if (Date.now() > expiresAt) {
               // Expired room! Delete from DB.
               await remove(ref(db, `rooms/${roomId}`));
@@ -1219,8 +1247,8 @@ export default function App() {
         <main
           id="view-renderer-canvas"
           className={`flex-1 flex flex-col min-h-0 ${view === "chat"
-              ? "justify-start py-0 md:py-4 overflow-hidden"
-              : "justify-center py-8"
+            ? "justify-start py-0 md:py-4 overflow-hidden"
+            : "justify-center py-8"
             }`}
         >
           {view === "home" && (
@@ -1245,11 +1273,10 @@ export default function App() {
                 {/* Security and Feature Cards Grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full pt-4">
                   {/* Card 1 */}
-                  <div className={`p-4 rounded-2xl border transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 hover:shadow-lg text-left group ${
-                    isDarkMode 
-                      ? "bg-white/5 border-white/5 hover:border-cyan-500/30 hover:shadow-cyan-500/5 text-white" 
+                  <div className={`p-4 rounded-2xl border transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 hover:shadow-lg text-left group ${isDarkMode
+                      ? "bg-white/5 border-white/5 hover:border-cyan-500/30 hover:shadow-cyan-500/5 text-white"
                       : "bg-slate-50 border-slate-200 hover:border-indigo-400 hover:shadow-indigo-500/5 text-slate-800"
-                  }`}>
+                    }`}>
                     <div className="p-2 rounded-xl bg-cyan-500/10 text-cyan-400 w-fit mb-3 group-hover:scale-110 transition-transform">
                       <Shield className="w-5 h-5 animate-pulse" />
                     </div>
@@ -1260,11 +1287,10 @@ export default function App() {
                   </div>
 
                   {/* Card 2 */}
-                  <div className={`p-4 rounded-2xl border transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 hover:shadow-lg text-left group ${
-                    isDarkMode 
-                      ? "bg-white/5 border-white/5 hover:border-indigo-500/30 hover:shadow-indigo-500/5 text-white" 
+                  <div className={`p-4 rounded-2xl border transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 hover:shadow-lg text-left group ${isDarkMode
+                      ? "bg-white/5 border-white/5 hover:border-indigo-500/30 hover:shadow-indigo-500/5 text-white"
                       : "bg-slate-50 border-slate-200 hover:border-indigo-400 hover:shadow-indigo-500/5 text-slate-800"
-                  }`}>
+                    }`}>
                     <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-400 w-fit mb-3 group-hover:scale-110 transition-transform">
                       <Lock className="w-5 h-5" />
                     </div>
@@ -1275,11 +1301,10 @@ export default function App() {
                   </div>
 
                   {/* Card 3 */}
-                  <div className={`p-4 rounded-2xl border transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 hover:shadow-lg text-left group ${
-                    isDarkMode 
-                      ? "bg-white/5 border-white/5 hover:border-purple-500/30 hover:shadow-purple-500/5 text-white" 
+                  <div className={`p-4 rounded-2xl border transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1 hover:shadow-lg text-left group ${isDarkMode
+                      ? "bg-white/5 border-white/5 hover:border-purple-500/30 hover:shadow-purple-500/5 text-white"
                       : "bg-slate-50 border-slate-200 hover:border-indigo-400 hover:shadow-indigo-500/5 text-slate-800"
-                  }`}>
+                    }`}>
                     <div className="p-2 rounded-xl bg-purple-500/10 text-purple-400 w-fit mb-3 group-hover:scale-110 transition-transform">
                       <ServerCrash className="w-5 h-5" />
                     </div>
@@ -1333,11 +1358,10 @@ export default function App() {
                 {/* Developer/App Credits Card */}
                 <div
                   id="developer-credits-card"
-                  className={`relative overflow-hidden p-5 rounded-[2rem] border text-center transition-all duration-500 hover:scale-[1.03] hover:-translate-y-1 hover:shadow-xl w-full group ${
-                    isDarkMode
+                  className={`relative overflow-hidden p-5 rounded-[2rem] border text-center transition-all duration-500 hover:scale-[1.03] hover:-translate-y-1 hover:shadow-xl w-full group ${isDarkMode
                       ? "bg-gradient-to-br from-[#121216] via-indigo-950/15 to-[#1c1c24] border-cyan-500/25 shadow-md shadow-cyan-500/5 hover:border-cyan-400/50 hover:shadow-cyan-500/10"
                       : "bg-gradient-to-br from-white via-indigo-50/20 to-purple-50/30 border-slate-200/80 shadow-sm hover:border-indigo-400 hover:shadow-indigo-500/10"
-                  }`}
+                    }`}
                 >
                   {/* Subtle Hover Radial Gradient Glow Effect */}
                   <div className="absolute -inset-24 bg-[radial-gradient(circle_at_center,rgba(6,182,212,0.15),transparent_60%)] opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
@@ -1352,11 +1376,11 @@ export default function App() {
                       <Code2 className="w-3 h-3 text-cyan-400" />
                       Project Developer
                     </p>
-                    
+
                     <h4 className="text-sm md:text-base font-black bg-gradient-to-r from-cyan-400 via-indigo-400 to-purple-400 bg-clip-text text-transparent uppercase tracking-wider leading-none">
                       Satyajit Pratihar
                     </h4>
-                    
+
                     <div className="inline-flex items-center gap-1 mt-1 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 shadow-sm animate-pulse">
                       <GraduationCap className="w-3.5 h-3.5" />
                       <span>GNIT - IT Student</span>
@@ -1384,11 +1408,10 @@ export default function App() {
                         href="https://github.com/satyajitpratihar07"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-[9px] font-black uppercase tracking-wider rounded-xl transition-all hover:scale-[1.03] active:scale-[0.97] cursor-pointer shadow-sm ${
-                          isDarkMode
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-[9px] font-black uppercase tracking-wider rounded-xl transition-all hover:scale-[1.03] active:scale-[0.97] cursor-pointer shadow-sm ${isDarkMode
                             ? "bg-slate-950/80 hover:bg-slate-950 border border-white/5 hover:border-cyan-400 text-cyan-400"
                             : "bg-slate-100 hover:bg-slate-200 border border-slate-200 text-indigo-600"
-                        }`}
+                          }`}
                       >
                         <Github className="w-3.5 h-3.5" />
                         GitHub Profile
@@ -1571,13 +1594,12 @@ export default function App() {
         <button
           id="btn-chatbot-trigger"
           onClick={() => isBotOpen ? handleCloseBot() : setIsBotOpen(true)}
-          className={`flex items-center justify-center w-14 h-14 rounded-full border shadow-2xl transition-all duration-300 cursor-pointer hover:scale-105 active:scale-95 group relative ${
-            isBotOpen
+          className={`flex items-center justify-center w-14 h-14 rounded-full border shadow-2xl transition-all duration-300 cursor-pointer hover:scale-105 active:scale-95 group relative ${isBotOpen
               ? "bg-[#18181b]/95 border-rose-500/40 text-rose-400 shadow-rose-500/10"
               : isDarkMode
                 ? "bg-gradient-to-tr from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 border-cyan-500/30 text-white shadow-cyan-500/15"
                 : "bg-gradient-to-tr from-indigo-500 to-cyan-500 hover:from-indigo-400 hover:to-cyan-400 border-indigo-500/20 text-white shadow-indigo-500/15"
-          }`}
+            }`}
         >
           {isBotOpen ? (
             <X className="w-6 h-6 transition-transform group-hover:rotate-90 duration-300" />
@@ -1594,20 +1616,17 @@ export default function App() {
         {/* Chat Window Panel */}
         <div
           id="chatbot-window-panel"
-          className={`absolute bottom-20 right-0 w-[440px] max-w-[calc(100vw-2rem)] h-[580px] rounded-3xl border shadow-2xl flex flex-col overflow-hidden backdrop-blur-md transition-all duration-500 origin-bottom-right ${
-            isBotOpen
+          className={`absolute bottom-20 right-0 w-96 max-w-[calc(100vw-2rem)] h-[480px] rounded-3xl border shadow-2xl flex flex-col overflow-hidden backdrop-blur-md transition-all duration-500 origin-bottom-right ${isBotOpen
               ? "scale-100 opacity-100 pointer-events-auto"
               : "scale-90 opacity-0 pointer-events-none"
-          } ${
-            isDarkMode
+            } ${isDarkMode
               ? "bg-[#090b10]/95 border-cyan-500/30 text-white shadow-cyan-500/5"
               : "bg-white/95 border-slate-200 text-slate-800 shadow-slate-300/40"
-          }`}
+            }`}
         >
           {/* Header */}
-          <div className={`p-4 border-b flex items-center justify-between ${
-            isDarkMode ? "border-white/5 bg-[#121218]/50" : "border-slate-100 bg-slate-50/50"
-          }`}>
+          <div className={`p-4 border-b flex items-center justify-between ${isDarkMode ? "border-white/5 bg-[#121218]/50" : "border-slate-100 bg-slate-50/50"
+            }`}>
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-cyan-400 via-indigo-400 to-purple-400 flex items-center justify-center text-white shadow-inner animate-pulse">
                 <Bot className="w-5 h-5" />
@@ -1629,22 +1648,21 @@ export default function App() {
           </div>
 
           {/* Messages List Area */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-3.5 custom-scrollbar text-[11px] leading-relaxed font-semibold">
+          <div className="flex-1 overflow-y-auto p-4 space-y-3.5 custom-scrollbar text-[11px] leading-relaxed">
             {botMessages.map((msg) => (
               <div
                 key={msg.id}
                 className={`flex w-full ${msg.sender === "user" ? "justify-end" : "justify-start"}`}
               >
                 <div
-                  className={`max-w-[80%] p-3.5 rounded-2xl text-left whitespace-pre-wrap shadow-sm border ${
-                    msg.sender === "user"
+                  className={`max-w-[80%] p-3.5 rounded-2xl text-left whitespace-pre-wrap shadow-sm border ${msg.sender === "user"
                       ? isDarkMode
                         ? "bg-gradient-to-tr from-cyan-500 to-indigo-600 border-cyan-500/25 text-white rounded-br-none"
                         : "bg-gradient-to-tr from-indigo-500 to-cyan-500 border-indigo-500/20 text-white rounded-br-none"
                       : isDarkMode
                         ? "bg-[#121218] border-white/5 text-slate-300 rounded-bl-none"
                         : "bg-slate-50 border-slate-200 text-slate-600 rounded-bl-none"
-                  }`}
+                    }`}
                 >
                   {msg.text}
                 </div>
@@ -1654,49 +1672,27 @@ export default function App() {
           </div>
 
           {/* Quick Suggestion Chips */}
-          <div className={`px-4 pt-3 pb-4 flex flex-wrap gap-1.5 border-t max-h-[160px] overflow-y-auto custom-scrollbar ${
-            isDarkMode ? "border-white/5 bg-[#090b10]" : "border-slate-100 bg-slate-50"
-          }`}>
+          <div className={`px-4 pt-3 pb-4 flex flex-wrap gap-1.5 border-t ${isDarkMode ? "border-white/5 bg-[#090b10]" : "border-slate-100 bg-slate-50"
+            }`}>
             {[
               "How to create chat?",
               "How to join?",
               "Is it secure?",
               "Explain buttons",
               "File sharing guide",
-              "How to pairing QR?",
-              "How does E2E work?",
-              "What is WebRTC?",
-              "Who is developer?",
-              "Is it free to use?",
-              "Does it store files?",
-              "How to add peer?",
-              "How to close room?",
-              "What is ephemeral?",
-              "Can I use on mobile?",
-              "How to toggle dark mode?",
-              "Is registration needed?",
-              "How to send messages?",
-              "Can host read chats?",
-              "What if host leaves?",
-              "Are chats encrypted?",
-              "Does it work offline?",
-              "Supported file sizes?",
-              "What is Firebase role?",
-              "Instant QR pairing info",
               "Clear History ✖"
             ].map((q, idx) => (
               <button
                 key={idx}
                 onClick={() => handleSendBotMessage(q)}
-                className={`px-2.5 py-1 rounded-xl text-[10px] font-bold tracking-tight transition-all active:scale-95 cursor-pointer border ${
-                  isDarkMode
+                className={`px-2.5 py-1 rounded-xl text-[10px] font-bold tracking-tight transition-all active:scale-95 cursor-pointer border ${isDarkMode
                     ? q === "Clear History ✖"
                       ? "bg-rose-950/40 border-rose-500/35 hover:bg-rose-900 text-rose-300"
                       : "bg-slate-900 border-white/5 hover:border-cyan-500/30 hover:bg-slate-950 text-cyan-400"
                     : q === "Clear History ✖"
                       ? "bg-rose-50 border-rose-200 hover:bg-rose-100 text-rose-600"
                       : "bg-slate-100 border-slate-200 hover:border-indigo-400 hover:bg-white text-indigo-600"
-                }`}
+                  }`}
               >
                 {q}
               </button>
