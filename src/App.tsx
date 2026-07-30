@@ -81,7 +81,28 @@ export default function App() {
     }
   }, [botMessages, isBotOpen]);
 
+  const handleCloseBot = () => {
+    setIsBotOpen(false);
+    setBotMessages([
+      {
+        id: 1,
+        text: "Hi! I am the Instant Guide Bot. 🤖 Ask me how to use the app, explain buttons, or request security details!",
+        sender: "bot"
+      }
+    ]);
+  };
+
   const handleSendBotMessage = (text: string) => {
+    if (text === "Clear History ✖") {
+      setBotMessages([
+        {
+          id: 1,
+          text: "Hi! I am the Instant Guide Bot. 🤖 Ask me how to use the app, explain buttons, or request security details!",
+          sender: "bot"
+        }
+      ]);
+      return;
+    }
     if (!text.trim()) return;
 
     const userMsgId = Date.now();
@@ -1511,7 +1532,7 @@ export default function App() {
         {/* Floating Toggle Button */}
         <button
           id="btn-chatbot-trigger"
-          onClick={() => setIsBotOpen(!isBotOpen)}
+          onClick={() => isBotOpen ? handleCloseBot() : setIsBotOpen(true)}
           className={`flex items-center justify-center w-14 h-14 rounded-full border shadow-2xl transition-all duration-300 cursor-pointer hover:scale-105 active:scale-95 group relative ${
             isBotOpen
               ? "bg-[#18181b]/95 border-rose-500/40 text-rose-400 shadow-rose-500/10"
@@ -1562,7 +1583,7 @@ export default function App() {
               </div>
             </div>
             <button
-              onClick={() => setIsBotOpen(false)}
+              onClick={handleCloseBot}
               className="p-1.5 hover:bg-slate-200 dark:hover:bg-white/5 rounded-lg transition-colors cursor-pointer"
             >
               <X className="w-4 h-4 text-slate-400" />
@@ -1603,15 +1624,20 @@ export default function App() {
               "How to join?",
               "Is it secure?",
               "Explain buttons",
-              "File sharing guide"
+              "File sharing guide",
+              "Clear History ✖"
             ].map((q, idx) => (
               <button
                 key={idx}
                 onClick={() => handleSendBotMessage(q)}
                 className={`px-2.5 py-1 rounded-xl text-[10px] font-bold tracking-tight transition-all active:scale-95 cursor-pointer border ${
                   isDarkMode
-                    ? "bg-slate-900 border-white/5 hover:border-cyan-500/30 hover:bg-slate-950 text-cyan-400"
-                    : "bg-slate-100 border-slate-200 hover:border-indigo-400 hover:bg-white text-indigo-600"
+                    ? q === "Clear History ✖"
+                      ? "bg-rose-950/40 border-rose-500/35 hover:bg-rose-900 text-rose-300"
+                      : "bg-slate-900 border-white/5 hover:border-cyan-500/30 hover:bg-slate-950 text-cyan-400"
+                    : q === "Clear History ✖"
+                      ? "bg-rose-50 border-rose-200 hover:bg-rose-100 text-rose-600"
+                      : "bg-slate-100 border-slate-200 hover:border-indigo-400 hover:bg-white text-indigo-600"
                 }`}
               >
                 {q}
