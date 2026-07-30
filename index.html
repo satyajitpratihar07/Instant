@@ -4,9 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content, viewport-fit=cover" />
 
-    <!-- Security: Content-Security-Policy (fallback for browsers ignoring headers) -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' wss: ws: https://firebasedatabase.app https://*.firebaseio.com https://generativelanguage.googleapis.com; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self';" />
-    <!-- Security: Clickjacking prevention -->
+    <!-- Security: Clickjacking prevention (also enforced via vercel.json X-Frame-Options header) -->
     <meta http-equiv="X-Frame-Options" content="DENY" />
     <!-- Security: MIME sniffing prevention -->
     <meta http-equiv="X-Content-Type-Options" content="nosniff" />
@@ -32,13 +30,6 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   </head>
   <body>
-    <!-- Security: Frame-busting script to prevent clickjacking -->
-    <script>
-      if (window.self !== window.top) {
-        try { window.top.location.href = window.self.location.href; }
-        catch (e) { document.body.style.display = 'none'; }
-      }
-    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
