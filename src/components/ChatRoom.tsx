@@ -2324,7 +2324,7 @@ export default function ChatRoom({
               Satyajit Pratihar
             </h4>
             <p className="text-[10px] font-black uppercase tracking-wider mt-0.5 bg-gradient-to-r from-cyan-400 to-teal-400 bg-clip-text text-transparent drop-shadow-[0_0_8px_rgba(6,182,212,0.3)]">
-              GNIT IT Student
+              GNIT - IT Student
             </p>
             <div className="mt-2 space-y-1 text-left text-[9px] text-slate-400/90 font-medium">
               <p className="flex items-center gap-1.5">
