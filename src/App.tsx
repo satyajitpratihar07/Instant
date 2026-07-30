@@ -117,12 +117,50 @@ export default function App() {
         reply = "💡 To Start a New Chat:\n\n1. Click the 'Create Chat' button on the home screen.\n2. A dynamic QR Code and a 6-digit Invite Code will be generated.\n3. Share the QR code or send the 6-digit code to pair instantly!";
       } else if (lower.includes("join") || lower.includes("scan") || lower.includes("enter")) {
         reply = "📲 To Join an Existing Chat:\n\n1. Click the 'Join Chat' button on the home screen.\n2. Scan your friend's QR code using your camera, or enter their 6-digit Invite Code.\n3. Wait for the host to approve you to securely enter the chat!";
-      } else if (lower.includes("security") || lower.includes("encrypt") || lower.includes("safe") || lower.includes("private") || lower.includes("webrtc")) {
+      } else if (lower.includes("security") || lower.includes("encrypt") || lower.includes("safe") || lower.includes("private")) {
         reply = "🔒 Security & Privacy Architecture:\n\n- Client-Side E2E Encryption: All messages and files are encrypted with AES-GCM 256 using keys stored locally in the browser.\n- Zero Logs: We store no messages, metadata, or IPs. Ephemeral database records are wiped completely when you close the session.\n- Direct Peer-to-Peer: Uses WebRTC so your data is sent directly between browser endpoints whenever possible.";
       } else if (lower.includes("button") || lower.includes("function") || lower.includes("how work")) {
         reply = "⚙️ App Functions & Buttons Explained:\n\n- Create Chat: Launches a new host room.\n- Join Chat: Opens scanner to join.\n- Theme Switcher (Sun/Moon): Changes dark/light modes.\n- Credits Card: Highlights project author Satyajit Pratihar (GNIT - IT Student).\n- Copy Button (inside chat): Copies selected messages exactly as formatted.";
       } else if (lower.includes("file") || lower.includes("share") || lower.includes("send")) {
         reply = "📎 To Share Files Securely:\n\n1. Inside the chat room, click the '+ File' button near the input field.\n2. Choose any file (images, PDFs, documents, etc.).\n3. The file is split into chunks, encrypted, and sent directly to your peers.";
+      } else if (lower.includes("pairing qr") || lower.includes("pairing info")) {
+        reply = "🔗 QR Pairing Info:\n\nThe QR code contains the temporary room session ID and the secret WebCrypto key (after the hash). When a guest scans the QR code, their browser extracts the key and connects directly via the signal broker to pair securely.";
+      } else if (lower.includes("e2e work")) {
+        reply = "🔒 How E2E Encryption Works:\n\n- The browser generates an AES-GCM 256-bit symmetric key.\n- Messages are encrypted client-side using this key before leaving the browser.\n- Only people who scanned/entered the room code have the key, so only they can read the chats.";
+      } else if (lower.includes("webrtc")) {
+        reply = "⚡ What is WebRTC:\n\nWebRTC (Web Real-Time Communication) is a browser technology that allows direct peer-to-peer data transfer without sending data through a middleman server.";
+      } else if (lower.includes("who is developer") || lower.includes("developer")) {
+        reply = "👨‍💻 About the Developer:\n\nDeveloped by Satyajit Pratihar, an IT Student at Guru Nanak Institute of Technology (GNIT), who builds secure, modern, and high-performance web applications.";
+      } else if (lower.includes("free to use")) {
+        reply = "🆓 Yes! Instant is 100% free, open-source, and does not contain ads, paywalls, or registrations.";
+      } else if (lower.includes("store files")) {
+        reply = "📂 File Storage Policy:\n\nInstant does NOT store files. Files are encrypted, transferred directly peer-to-peer, and are completely removed from existence once the chat session closes.";
+      } else if (lower.includes("add peer")) {
+        reply = "➕ How to add another Peer:\n\nSimply click the 'QR Code' icon in the chat header to display the room QR code again, and let another person scan it to join.";
+      } else if (lower.includes("close room")) {
+        reply = "✖ How to close the room:\n\nClick the exit door button in the top header. If you are the Host, this will disconnect all peers and wipe all database references.";
+      } else if (lower.includes("ephemeral")) {
+        reply = "⏳ What is Ephemeral:\n\n'Ephemeral' means short-lived. Your chat session only exists as long as your browser tab is open. There is no permanent storage, search history, or server log.";
+      } else if (lower.includes("mobile")) {
+        reply = "📱 Mobile Support:\n\nYes! Instant is fully responsive and optimized for mobile screens, tablets, and desktops. You can scan QR codes using your phone's camera.";
+      } else if (lower.includes("dark mode")) {
+        reply = "🌗 How to toggle Dark Mode:\n\nClick the Sun/Moon icon in the top header of the landing page or the chat room to switch between dark and light themes.";
+      } else if (lower.includes("registration needed")) {
+        reply = "🚫 No Registration:\n\nYou do not need an email, phone number, or password. Simply generate a session and start sharing instantly.";
+      } else if (lower.includes("send messages")) {
+        reply = "💬 How to send messages:\n\nType your message in the chat input bar and hit Enter or click the Send button. All messages are encrypted instantly.";
+      } else if (lower.includes("host read chats")) {
+        reply = "👁 Can the Host read my chats?\n\nThe Host has the same decryption key as other participants. However, nobody outside the active session room can read or intercept the messages.";
+      } else if (lower.includes("host leaves")) {
+        reply = "🚪 What if the Host leaves?\n\nIf the Host leaves, the database references are deleted, and all guests are notified that the room is offline to ensure absolute privacy.";
+      } else if (lower.includes("chats encrypted")) {
+        reply = "🔐 Are all chats encrypted?\n\nYes! Every single message, file, and system notification is fully encrypted inside your browser before transmitting.";
+      } else if (lower.includes("offline")) {
+        reply = "🔌 Does it work offline?\n\nIt requires an internet connection to pair peers via the signaling database initially, but after establishing WebRTC, direct peer data transfer is localized.";
+      } else if (lower.includes("file sizes")) {
+        reply = "📦 Supported File Sizes:\n\nInstant supports sharing files of varying sizes (up to 50MB-100MB depending on your browser's WebRTC buffer limits).";
+      } else if (lower.includes("firebase role")) {
+        reply = "🔥 What is Firebase's role?\n\nFirebase Realtime Database acts purely as an ephemeral signaling channel to exchange WebRTC session descriptions. It holds zero unencrypted data.";
       } else {
         reply = "🤖 I'm here to guide you! Try asking:\n\n- How to create a chat?\n- How to join a room?\n- Tell me about security and encryption.\n- Explain what the buttons do.\n- How to share files?";
       }
@@ -1556,7 +1594,7 @@ export default function App() {
         {/* Chat Window Panel */}
         <div
           id="chatbot-window-panel"
-          className={`absolute bottom-20 right-0 w-96 max-w-[calc(100vw-2rem)] h-[480px] rounded-3xl border shadow-2xl flex flex-col overflow-hidden backdrop-blur-md transition-all duration-500 origin-bottom-right ${
+          className={`absolute bottom-20 right-0 w-[440px] max-w-[calc(100vw-2rem)] h-[580px] rounded-3xl border shadow-2xl flex flex-col overflow-hidden backdrop-blur-md transition-all duration-500 origin-bottom-right ${
             isBotOpen
               ? "scale-100 opacity-100 pointer-events-auto"
               : "scale-90 opacity-0 pointer-events-none"
@@ -1591,7 +1629,7 @@ export default function App() {
           </div>
 
           {/* Messages List Area */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-3.5 custom-scrollbar text-[11px] leading-relaxed">
+          <div className="flex-1 overflow-y-auto p-4 space-y-3.5 custom-scrollbar text-[11px] leading-relaxed font-semibold">
             {botMessages.map((msg) => (
               <div
                 key={msg.id}
@@ -1616,7 +1654,7 @@ export default function App() {
           </div>
 
           {/* Quick Suggestion Chips */}
-          <div className={`px-4 pt-3 pb-4 flex flex-wrap gap-1.5 border-t ${
+          <div className={`px-4 pt-3 pb-4 flex flex-wrap gap-1.5 border-t max-h-[160px] overflow-y-auto custom-scrollbar ${
             isDarkMode ? "border-white/5 bg-[#090b10]" : "border-slate-100 bg-slate-50"
           }`}>
             {[
@@ -1625,6 +1663,26 @@ export default function App() {
               "Is it secure?",
               "Explain buttons",
               "File sharing guide",
+              "How to pairing QR?",
+              "How does E2E work?",
+              "What is WebRTC?",
+              "Who is developer?",
+              "Is it free to use?",
+              "Does it store files?",
+              "How to add peer?",
+              "How to close room?",
+              "What is ephemeral?",
+              "Can I use on mobile?",
+              "How to toggle dark mode?",
+              "Is registration needed?",
+              "How to send messages?",
+              "Can host read chats?",
+              "What if host leaves?",
+              "Are chats encrypted?",
+              "Does it work offline?",
+              "Supported file sizes?",
+              "What is Firebase role?",
+              "Instant QR pairing info",
               "Clear History ✖"
             ].map((q, idx) => (
               <button
