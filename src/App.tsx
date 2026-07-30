@@ -21,7 +21,11 @@ import {
   Shield,
   Lock,
   ServerCrash,
-  EyeOff
+  EyeOff,
+  Bot,
+  MessageSquare,
+  Send,
+  HelpCircle
 } from "lucide-react";
 import { Message, Peer, Session, JoinRequest } from "./types";
 import { playNotificationSound, getAvatarGradient, getInitials } from "./utils";
@@ -57,6 +61,57 @@ export default function App() {
   });
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [toasts, setToasts] = useState<Toast[]>([]);
+
+  // --- Guide Chatbot State ---
+  const [isBotOpen, setIsBotOpen] = useState(false);
+  const [botMessages, setBotMessages] = useState<Array<{ id: number; text: string; sender: "bot" | "user" }>>([
+    {
+      id: 1,
+      text: "Hi! I am the Instant Guide Bot. 🤖 Ask me how to use the app, explain buttons, or request security details!",
+      sender: "bot"
+    }
+  ]);
+  const [botInput, setBotInput] = useState("");
+  const botMessagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Auto scroll guide bot messages
+  useEffect(() => {
+    if (isBotOpen) {
+      botMessagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [botMessages, isBotOpen]);
+
+  const handleSendBotMessage = (text: string) => {
+    if (!text.trim()) return;
+
+    const userMsgId = Date.now();
+    setBotMessages((prev) => [...prev, { id: userMsgId, text, sender: "user" }]);
+    setBotInput("");
+
+    setTimeout(() => {
+      const lower = text.toLowerCase();
+      let reply = "";
+
+      if (lower.includes("create") || lower.includes("start") || lower.includes("room")) {
+        reply = "💡 **To Start a New Chat:**\n\n1. Click the **'Create Chat'** button on the home screen.\n2. A dynamic **QR Code** and a **6-digit Invite Code** will be generated.\n3. Show the QR code to your friend (they can scan it) or copy/send the 6-digit code to pair instantly!";
+      } else if (lower.includes("join") || lower.includes("scan") || lower.includes("enter")) {
+        reply = "📲 **To Join an Existing Chat:**\n\n1. Click the **'Join Chat'** button on the home screen.\n2. Scan your friend's room QR code using your device camera, or click **'Enter Code'** and enter their 6-digit Invite Code.\n3. Wait for the host to click 'Approve' to securely enter the chat!";
+      } else if (lower.includes("security") || lower.includes("encrypt") || lower.includes("safe") || lower.includes("private") || lower.includes("webrtc")) {
+        reply = "🔒 **Security & Privacy Architecture:**\n\n- **Client-Side E2E Encryption:** All messages and files are encrypted with AES-GCM 256 using keys stored locally in the browser.\n- **Zero Logs:** We store no messages, metadata, or IPs. Ephemeral database records exist only to connect peers and are wiped completely.\n- **Direct Peer-to-Peer:** Uses WebRTC so your data is sent directly between browser endpoints whenever possible.";
+      } else if (lower.includes("button") || lower.includes("function") || lower.includes("how work")) {
+        reply = "⚙️ **App Functions & Buttons Explained:**\n\n- **Create Chat:** Launches a new host room.\n- **Join Chat:** Launches scanner to scan code.\n- **Theme Switcher (Sun/Moon):** Changes dark/light modes.\n- **Credits Card:** Highlights project author **Satyajit Pratihar** (GNIT IT Student).\n- **Copy Button (inside chat):** Copies selected messages or codes exactly as formatted.";
+      } else if (lower.includes("file") || lower.includes("share") || lower.includes("send")) {
+        reply = "📎 **To Share Files Securely:**\n\n1. Inside the chat room, click the **'+ File'** button near the text input field.\n2. Choose any file (images, PDFs, documents up to WebRTC limits).\n3. The file is split into chunks, encrypted, and streamed directly to your peers.";
+      } else {
+        reply = "🤖 I'm here to guide you! Try asking:\n\n- *'How to create a chat?'*\n- *'How to join a room?'*\n- *'Tell me about the security and encryption.'*\n- *'Explain what the buttons do.'*\n- *'How to share files?'*";
+      }
+
+      setBotMessages((prev) => [
+        ...prev,
+        { id: Date.now() + 1, text: reply, sender: "bot" }
+      ]);
+    }, 450);
+  };
 
   // --- Real-time Peer State ---
   const [peer, setPeer] = useState<Peer | null>(null);
@@ -1451,6 +1506,150 @@ export default function App() {
           </div>
         </div>
       )}
+      {/* --- Floating Guide Chatbot Component --- */}
+      <div id="guide-chatbot-container" className="fixed bottom-6 right-6 z-[90] select-none">
+        {/* Floating Toggle Button */}
+        <button
+          id="btn-chatbot-trigger"
+          onClick={() => setIsBotOpen(!isBotOpen)}
+          className={`flex items-center justify-center w-14 h-14 rounded-full border shadow-2xl transition-all duration-300 cursor-pointer hover:scale-105 active:scale-95 group relative ${
+            isBotOpen
+              ? "bg-[#18181b]/95 border-rose-500/40 text-rose-400 shadow-rose-500/10"
+              : isDarkMode
+                ? "bg-gradient-to-tr from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 border-cyan-500/30 text-white shadow-cyan-500/15"
+                : "bg-gradient-to-tr from-indigo-500 to-cyan-500 hover:from-indigo-400 hover:to-cyan-400 border-indigo-500/20 text-white shadow-indigo-500/15"
+          }`}
+        >
+          {isBotOpen ? (
+            <X className="w-6 h-6 transition-transform group-hover:rotate-90 duration-300" />
+          ) : (
+            <>
+              <Bot className="w-6 h-6 animate-pulse" />
+              {/* Notification dot */}
+              <span className="absolute top-0 right-0 w-3 h-3 bg-rose-500 border border-white dark:border-[#090b10] rounded-full animate-ping" />
+              <span className="absolute top-0 right-0 w-3 h-3 bg-rose-500 border border-white dark:border-[#090b10] rounded-full" />
+            </>
+          )}
+        </button>
+
+        {/* Chat Window Panel */}
+        <div
+          id="chatbot-window-panel"
+          className={`absolute bottom-20 right-0 w-96 max-w-[calc(100vw-2rem)] h-[480px] rounded-3xl border shadow-2xl flex flex-col overflow-hidden backdrop-blur-md transition-all duration-500 origin-bottom-right ${
+            isBotOpen
+              ? "scale-100 opacity-100 pointer-events-auto"
+              : "scale-90 opacity-0 pointer-events-none"
+          } ${
+            isDarkMode
+              ? "bg-[#090b10]/95 border-cyan-500/30 text-white shadow-cyan-500/5"
+              : "bg-white/95 border-slate-200 text-slate-800 shadow-slate-300/40"
+          }`}
+        >
+          {/* Header */}
+          <div className={`p-4 border-b flex items-center justify-between ${
+            isDarkMode ? "border-white/5 bg-[#121218]/50" : "border-slate-100 bg-slate-50/50"
+          }`}>
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-cyan-400 via-indigo-400 to-purple-400 flex items-center justify-center text-white shadow-inner animate-pulse">
+                <Bot className="w-5 h-5" />
+              </div>
+              <div className="text-left">
+                <h4 className="text-xs font-black uppercase tracking-wider">Instant Assistant</h4>
+                <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+                  <span>Online Guide</span>
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setIsBotOpen(false)}
+              className="p-1.5 hover:bg-slate-200 dark:hover:bg-white/5 rounded-lg transition-colors cursor-pointer"
+            >
+              <X className="w-4 h-4 text-slate-400" />
+            </button>
+          </div>
+
+          {/* Messages List Area */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-3.5 custom-scrollbar text-[11px] leading-relaxed">
+            {botMessages.map((msg) => (
+              <div
+                key={msg.id}
+                className={`flex w-full ${msg.sender === "user" ? "justify-end" : "justify-start"}`}
+              >
+                <div
+                  className={`max-w-[80%] p-3.5 rounded-2xl text-left whitespace-pre-wrap shadow-sm border ${
+                    msg.sender === "user"
+                      ? isDarkMode
+                        ? "bg-gradient-to-tr from-cyan-500 to-indigo-600 border-cyan-500/25 text-white rounded-br-none"
+                        : "bg-gradient-to-tr from-indigo-500 to-cyan-500 border-indigo-500/20 text-white rounded-br-none"
+                      : isDarkMode
+                        ? "bg-[#121218] border-white/5 text-slate-300 rounded-bl-none"
+                        : "bg-slate-50 border-slate-200 text-slate-600 rounded-bl-none"
+                  }`}
+                >
+                  {msg.text}
+                </div>
+              </div>
+            ))}
+            <div ref={botMessagesEndRef} />
+          </div>
+
+          {/* Quick Suggestion Chips */}
+          <div className={`px-4 py-2 flex flex-wrap gap-1.5 border-t ${
+            isDarkMode ? "border-white/5 bg-[#090b10]" : "border-slate-100 bg-slate-50"
+          }`}>
+            {[
+              "How to create chat?",
+              "How to join?",
+              "Is it secure?",
+              "Explain buttons",
+              "File sharing guide"
+            ].map((q, idx) => (
+              <button
+                key={idx}
+                onClick={() => handleSendBotMessage(q)}
+                className={`px-2.5 py-1 rounded-xl text-[10px] font-bold tracking-tight transition-all active:scale-95 cursor-pointer border ${
+                  isDarkMode
+                    ? "bg-slate-900 border-white/5 hover:border-cyan-500/30 hover:bg-slate-950 text-cyan-400"
+                    : "bg-slate-100 border-slate-200 hover:border-indigo-400 hover:bg-white text-indigo-600"
+                }`}
+              >
+                {q}
+              </button>
+            ))}
+          </div>
+
+          {/* Input Panel */}
+          <div className={`p-3 border-t flex items-center gap-2 ${
+            isDarkMode ? "border-white/5 bg-[#121218]/40" : "border-slate-100 bg-slate-50/20"
+          }`}>
+            <input
+              type="text"
+              value={botInput}
+              onChange={(e) => setBotInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleSendBotMessage(botInput);
+              }}
+              placeholder="Type guide questions (e.g. secure, buttons)..."
+              className={`flex-grow px-3.5 py-2.5 rounded-xl text-[11px] font-semibold border outline-none transition-all ${
+                isDarkMode
+                  ? "bg-slate-950/80 border-white/10 text-white focus:border-cyan-500/50 focus:bg-slate-950"
+                  : "bg-white border-slate-200 text-slate-800 focus:border-indigo-500 focus:bg-white"
+              }`}
+            />
+            <button
+              onClick={() => handleSendBotMessage(botInput)}
+              className={`p-2.5 rounded-xl border flex items-center justify-center transition-all cursor-pointer hover:scale-[1.03] active:scale-[0.97] ${
+                isDarkMode
+                  ? "bg-cyan-500/10 hover:bg-cyan-500 border-cyan-500/20 hover:border-cyan-400 text-cyan-400 hover:text-white shadow-cyan-500/5"
+                  : "bg-indigo-50 hover:bg-indigo-600 border-indigo-100 hover:border-indigo-500 text-indigo-600 hover:text-white"
+              }`}
+            >
+              <Send className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      </div>
 
       <div id="toast-banners-holder" className="fixed top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 md:top-6 md:bottom-auto md:left-1/2 md:-translate-x-1/2 md:-translate-y-0 z-[100] flex flex-col items-center gap-2.5 w-[calc(100%-2rem)] max-w-xs md:max-w-sm pointer-events-none select-none">
         {toasts.map((toast) => (
