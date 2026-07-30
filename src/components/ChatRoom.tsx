@@ -503,6 +503,7 @@ export default function ChatRoom({
   isKeyboardLocked: isKeyboardLockedProp = false,
   onKeyboardLockChange,
 }: ChatRoomProps) {
+  const activePeer = peers[0] || peer || { id: "awaiting", name: "Awaiting...", avatarSeed: "default", online: false };
   const [inputText, setInputText] = useState("");
   const [lastPeerOnlineTime, setLastPeerOnlineTime] = useState<number>(() => peerOnline ? Date.now() : 0);
 
@@ -986,7 +987,7 @@ export default function ChatRoom({
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const chatInputRef = useRef<HTMLInputElement | null>(null);
+  const chatInputRef = useRef<HTMLTextAreaElement | null>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [isSelfTyping, setIsSelfTyping] = useState(false);
 
@@ -1008,7 +1009,16 @@ export default function ChatRoom({
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+
+  useEffect(() => {
+    const textarea = chatInputRef.current;
+    if (textarea) {
+      textarea.style.height = "auto";
+      textarea.style.height = `${Math.min(textarea.scrollHeight, 160)}px`;
+    }
+  }, [inputText]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>) => {
     setInputText(e.target.value);
 
     // Send typing notification if not already typing
@@ -1061,9 +1071,19 @@ export default function ChatRoom({
     }
   };
 
-  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement | HTMLInputElement>) => {
     if (e.clipboardData && e.clipboardData.files && e.clipboardData.files.length > 0) {
       processSelectedFiles(e.clipboardData.files);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      const form = document.getElementById("chat-input-form") as HTMLFormElement;
+      if (form) {
+        form.requestSubmit();
+      }
     }
   };
 
@@ -2057,10 +2077,10 @@ export default function ChatRoom({
               </div>
             )}
 
-            <input
+            <textarea
               id="chat-message-textbox"
               ref={chatInputRef}
-              type="text"
+              rows={1}
               placeholder={
                 isUploading
                   ? `Uploading (${uploadProgress ? Math.round((uploadProgress.current / uploadProgress.total) * 100) : 0}%)...`
@@ -2068,6 +2088,7 @@ export default function ChatRoom({
               }
               value={inputText}
               onChange={handleInputChange}
+              onKeyDown={handleKeyDown}
               onPaste={handlePaste}
               disabled={isUploading}
               onFocus={() => {
@@ -2089,7 +2110,7 @@ export default function ChatRoom({
                   document.body.scrollTop = 0;
                 }, 50);
               }}
-              className={`flex-1 min-w-0 py-3 md:py-3.5 px-4 md:px-5 rounded-xl outline-none border transition-all text-base md:text-lg ${isDarkMode
+              className={`flex-1 min-w-0 py-3 md:py-3.5 px-4 md:px-5 rounded-xl outline-none border transition-all text-base md:text-lg resize-none max-h-40 overflow-y-auto ${isDarkMode
                 ? "bg-slate-950/80 border-white/5 text-slate-100 placeholder-slate-600 focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/30"
                 : "bg-slate-50 border-slate-200 text-slate-800 placeholder-slate-400 focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
                 } ${isKeyboardLocked ? 'ring-2 ring-cyan-500/50 border-cyan-500/50' : ''}`}
