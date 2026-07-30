@@ -1103,9 +1103,20 @@ export default function App() {
         >
           {view === "home" && (
             <div id="hero-view" className="text-center max-w-xl mx-auto space-y-10 animate-slide-up">
-              <div id="hero-badge" className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
-                <Sparkles className="w-3.5 h-3.5 animate-pulse" />
-                <span>Zero registration • ephemeral secure pairing</span>
+              {/* Developer/App Credits Card */}
+              <div id="developer-credits-card" className={`p-4 rounded-3xl border text-center transition-all duration-300 max-w-xs mx-auto ${isDarkMode
+                ? "bg-gradient-to-br from-indigo-500/10 via-cyan-500/5 to-purple-500/10 border-cyan-500/25 shadow-md shadow-cyan-500/5"
+                : "bg-slate-50 border-slate-200"
+                }`}>
+                <p className="text-[9px] text-slate-400 uppercase tracking-widest font-black">
+                  Developed By
+                </p>
+                <h4 className="text-xs font-black mt-1 bg-gradient-to-r from-cyan-400 via-indigo-400 to-purple-400 bg-clip-text text-transparent uppercase tracking-wider">
+                  Satyajit Pratihar
+                </h4>
+                <p className="text-[10px] font-black uppercase tracking-wider mt-0.5 bg-gradient-to-r from-cyan-400 to-teal-400 bg-clip-text text-transparent drop-shadow-[0_0_8px_rgba(6,182,212,0.3)]">
+                  GNIT - IT Student
+                </p>
               </div>
 
               <div id="hero-heading" className="space-y-4">
@@ -1159,22 +1170,6 @@ export default function App() {
                     </p>
                   </div>
                 </button>
-              </div>
-
-              {/* Developer/App Credits Card */}
-              <div id="developer-credits-card" className={`p-4 rounded-3xl border text-center transition-all duration-300 max-w-xs mx-auto ${isDarkMode
-                ? "bg-gradient-to-br from-indigo-500/10 via-cyan-500/5 to-purple-500/10 border-cyan-500/25 shadow-md shadow-cyan-500/5"
-                : "bg-slate-50 border-slate-200"
-                }`}>
-                <p className="text-[9px] text-slate-400 uppercase tracking-widest font-black">
-                  Developed By
-                </p>
-                <h4 className="text-xs font-black mt-1 bg-gradient-to-r from-cyan-400 via-indigo-400 to-purple-400 bg-clip-text text-transparent uppercase tracking-wider">
-                  Satyajit Pratihar
-                </h4>
-                <p className="text-[10px] font-black uppercase tracking-wider mt-0.5 bg-gradient-to-r from-cyan-400 to-teal-400 bg-clip-text text-transparent drop-shadow-[0_0_8px_rgba(6,182,212,0.3)]">
-                  GNIT - IT Student
-                </p>
               </div>
             </div>
           )}
