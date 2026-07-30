@@ -1191,13 +1191,13 @@ export default function App() {
 
       <div
         id="main-content-scroller"
-        className={`relative z-10 flex flex-col ${view === "chat" ? "w-full h-full px-0 md:px-8 py-0 md:py-3 justify-between overflow-hidden md:max-w-7xl md:mx-auto" : "max-w-7xl mx-auto min-h-[100dvh] px-4 md:px-8 justify-between pb-8 md:pb-12"
+        className={`relative z-10 flex flex-col ${view === "chat" ? "w-full h-full px-0 md:px-8 py-0 md:py-3 justify-between overflow-hidden md:max-w-7xl md:mx-auto" : "max-w-7xl mx-auto min-h-[100dvh] px-4 md:px-8 justify-between pb-4 md:pb-6"
           }`}
       >
         {/* Navigation / Control Header */}
         <header
           id="global-nav-bar"
-          className={`sticky top-0 z-40 flex items-center justify-between py-4 px-6 my-4 rounded-3xl border select-none transition-colors duration-300 ${view === "chat" ? "hidden md:flex" : "flex"
+          className={`sticky top-0 z-40 flex items-center justify-between py-3 px-6 my-2 rounded-3xl border select-none transition-colors duration-300 ${view === "chat" ? "hidden md:flex" : "flex"
             } ${isDarkMode
               ? "bg-sleek-card border-white/5 shadow-lg shadow-black/35"
               : "bg-white border-slate-200/80 shadow-md"
@@ -1213,10 +1213,10 @@ export default function App() {
             <div className="text-left">
               <h1 className="text-xl font-bold tracking-tight leading-tight">
                 <span className={isDarkMode ? "bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400" : "text-slate-900"}>
-                  Instant 2.0
+                  Instant07
                 </span>
               </h1>
-              <p className={`text-[10px] font-medium uppercase tracking-widest ${isDarkMode ? "text-slate-500" : "text-slate-400"}`}>
+              <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest leading-none">
                 Pair & Share
               </p>
             </div>
@@ -1248,11 +1248,11 @@ export default function App() {
           id="view-renderer-canvas"
           className={`flex-1 flex flex-col min-h-0 ${view === "chat"
             ? "justify-start py-0 md:py-4 overflow-hidden"
-            : "justify-center py-8"
+            : "justify-center py-4"
             }`}
         >
           {view === "home" && (
-            <div id="hero-view" className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-16 items-center text-center lg:text-left max-w-5xl mx-auto animate-slide-up py-4 md:py-8 w-full">
+            <div id="hero-view" className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-16 items-center text-center lg:text-left max-w-7xl mx-auto animate-slide-up py-2 md:py-4 w-full">
               {/* Left Side: Heading, Info, and Notice */}
               <div className="lg:col-span-7 flex flex-col items-center lg:items-start text-center lg:text-left space-y-6">
                 <div id="hero-heading" className="space-y-4">
