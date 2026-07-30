@@ -2323,6 +2323,9 @@ export default function ChatRoom({
             <h4 className="text-xs font-black mt-1 bg-gradient-to-r from-cyan-400 via-indigo-400 to-purple-400 bg-clip-text text-transparent uppercase tracking-wider">
               Satyajit Pratihar
             </h4>
+            <p className="text-[8px] text-slate-400 font-black uppercase tracking-wider mt-0.5">
+              GNIT IT Student
+            </p>
             <div className="mt-2 space-y-1 text-left text-[9px] text-slate-400/90 font-medium">
               <p className="flex items-center gap-1.5">
                 <span className="w-1 h-1 rounded-full bg-cyan-400"></span>
