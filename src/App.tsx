@@ -55,7 +55,7 @@ function generateRandomName(): string {
 
 const CustomCursor: React.FC = () => {
   const [position, setPosition] = useState({ x: 0, y: 0 });
-  const [trail, setTrail] = useState({ x: 0, y: 0 });
+  const [trail, setTrail] = useState({ x: 0, y: 0, angle: 0, stretch: 0 });
   const [isHovered, setIsHovered] = useState(false);
   const [isClicked, setIsClicked] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
@@ -103,9 +103,21 @@ const CustomCursor: React.FC = () => {
       setTrail((prev) => {
         const dx = position.x - prev.x;
         const dy = position.y - prev.y;
+        const speed = Math.sqrt(dx * dx + dy * dy);
+        
+        // Calculate raw velocity angle and stretch
+        const rawAngle = Math.atan2(dy, dx) * (180 / Math.PI);
+        const rawStretch = Math.min(speed * 0.04, 0.4);
+
+        // Smoothly interpolate angle to avoid sudden jumps when stationary
+        const angle = speed > 2 ? rawAngle : prev.angle;
+        
+        // Return interpolated position and stretch values
         return {
           x: prev.x + dx * 0.15,
-          y: prev.y + dy * 0.15
+          y: prev.y + dy * 0.15,
+          angle: angle,
+          stretch: prev.stretch + (rawStretch - prev.stretch) * 0.15
         };
       });
       requestRef.current = requestAnimationFrame(animateTrail);
@@ -120,21 +132,15 @@ const CustomCursor: React.FC = () => {
 
   return (
     <>
+      {/* Trailing Outer Ring with stretch motion animation */}
       <div
-        className="fixed top-0 left-0 w-2 h-2 bg-cyan-400 rounded-full pointer-events-none z-[99999] -translate-x-1/2 -translate-y-1/2 mix-blend-difference hidden md:block"
-        style={{
-          transform: `translate3d(${position.x}px, ${position.y}px, 0) scale(${isClicked ? 0.8 : 1})`,
-          transition: "transform 0.05s linear"
-        }}
-      />
-      <div
-        className={`fixed top-0 left-0 w-8 h-8 rounded-full border pointer-events-none z-[99998] -translate-x-1/2 -translate-y-1/2 hidden md:block transition-all duration-300 ${
+        className={`fixed top-0 left-0 rounded-full pointer-events-none z-[99998] -translate-x-1/2 -translate-y-1/2 hidden md:block transition-all duration-300 ${
           isHovered 
-            ? "border-cyan-400 bg-cyan-400/10 scale-150" 
-            : "border-indigo-400/40 bg-transparent"
+            ? "w-12 h-12 border-2 border-cyan-400 bg-cyan-400/10 shadow-[0_0_20px_rgba(6,182,212,0.25)] scale-110" 
+            : "w-8 h-8 border border-indigo-400/25 bg-indigo-500/5 shadow-[0_0_10px_rgba(99,102,241,0.08)]"
         }`}
         style={{
-          transform: `translate3d(${trail.x}px, ${trail.y}px, 0) scale(${isClicked ? 1.2 : 1})`
+          transform: `translate3d(${trail.x}px, ${trail.y}px, 0) rotate(${trail.angle}deg) scaleX(${1 + trail.stretch}) scaleY(${1 - trail.stretch}) scale(${isClicked ? 0.8 : 1})`
         }}
       />
     </>
