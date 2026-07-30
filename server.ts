@@ -380,7 +380,7 @@ async function startServer() {
           styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
           fontSrc: ["'self'", "https://fonts.gstatic.com"],
           imgSrc: ["'self'", "data:", "blob:"],
-          connectSrc: ["'self'", "wss:", "ws:", "https://firebasedatabase.app", "https://*.firebaseio.com"],
+          connectSrc: ["'self'", "wss:", "ws:", "https://*.firebasedatabase.app", "https://*.firebaseio.com"],
           frameSrc: ["'none'"],
           objectSrc: ["'none'"],
           upgradeInsecureRequests: [],
