@@ -800,8 +800,12 @@ export default function App() {
 
       // Cleanup logic removed to prevent massive database downloads
 
-      // Always cancel disconnect handler to prevent session deletion on refresh/tab switch
-      onDisconnect(ref(db, `sessions/${activeSession.id}`)).cancel();
+      try {
+        // Always cancel disconnect handler to prevent session deletion on refresh/tab switch
+        onDisconnect(ref(db, `sessions/${activeSession.id}`)).cancel();
+      } catch (e) {
+        console.error("Error setting onDisconnect cancel handler:", e);
+      }
 
       if (activeSession.connectedRoomId) {
         const roomId = activeSession.connectedRoomId;
@@ -815,10 +819,10 @@ export default function App() {
 
             if (Date.now() > expiresAt) {
               // Expired room! Delete from DB.
-              await remove(ref(db, `rooms/${roomId}`));
-              await remove(ref(db, `files/${roomId}`));
+              await remove(ref(db, `rooms/${roomId}`)).catch(() => {});
+              await remove(ref(db, `files/${roomId}`)).catch(() => {});
               activeSession.connectedRoomId = null;
-              await update(ref(db, `sessions/${activeSession.id}`), { connectedRoomId: null });
+              await update(ref(db, `sessions/${activeSession.id}`), { connectedRoomId: null }).catch(() => {});
             } else {
               // Re-insert or update our member status to be online
               await update(ref(db, `rooms/${roomId}/members/${activeSession.id}`), {
@@ -827,12 +831,12 @@ export default function App() {
                 avatarSeed: activeSession.avatarSeed,
                 joinedAt: Date.now(),
                 lastActive: Date.now()
-              });
+              }).catch(() => {});
               setView("chat");
             }
           } else {
             activeSession.connectedRoomId = null;
-            await update(ref(db, `sessions/${activeSession.id}`), { connectedRoomId: null });
+            await update(ref(db, `sessions/${activeSession.id}`), { connectedRoomId: null }).catch(() => {});
           }
         } catch (err) {
           console.error("Failed to recover room members status:", err);
@@ -857,21 +861,42 @@ export default function App() {
 
   // --- Create Chat Room Hook (Add Member Flow) ---
   const handleCreateRoom = async () => {
-    if (!session) return;
+    let activeSession = session;
+    if (!activeSession) {
+      // Fallback: Dynamically generate local session immediately so user is not blocked
+      const savedId = localStorage.getItem("qr_e2e_session_id");
+      const newId = savedId && /^[0-9a-f-]{36}$/i.test(savedId) ? savedId : generateUUID();
+      activeSession = {
+        id: newId,
+        avatarSeed: Math.random().toString(36).substring(7),
+        name: generateRandomName(),
+        connectedRoomId: null,
+        lastActive: Date.now()
+      };
+      setSession(activeSession);
+      localStorage.setItem("qr_e2e_session_id", activeSession.id);
+      
+      // Async save to database
+      set(ref(db, `sessions/${newId}`), activeSession).catch((err) => {
+        console.error("Failed to async create session in DB:", err);
+      });
+    }
+
     isLeavingRef.current = false; // Reset leaving flag to allow connection state changes
+
 
     const newRoomId = generateUUID();
     try {
       const roomData: Record<string, any> = {
         id: newRoomId,
-        creatorId: session.id,
+        creatorId: activeSession.id,
         createdTime: Date.now(),
         expiresAt: Date.now() + 3 * 60 * 60 * 1000, // Always set 3h expiry
         members: {
-          [session.id]: {
-            id: session.id,
+          [activeSession.id]: {
+            id: activeSession.id,
             name: "Host",
-            avatarSeed: session.avatarSeed,
+            avatarSeed: activeSession.avatarSeed,
             joinedAt: Date.now(),
             lastActive: Date.now()
           }
@@ -880,12 +905,12 @@ export default function App() {
       await set(ref(db, `rooms/${newRoomId}`), roomData);
 
       isHostRef.current = true; // Mark as host
-      await update(ref(db, `sessions/${session.id}`), {
+      await update(ref(db, `sessions/${activeSession.id}`), {
         connectedRoomId: newRoomId,
         name: "Host"
       });
 
-      setSession((prev) => prev ? { ...prev, connectedRoomId: newRoomId, name: "Host" } : null);
+      setSession({ ...activeSession, connectedRoomId: newRoomId, name: "Host" });
       setAutoShowInvite(true); // Open invite modal automatically in chat room
       setView("chat");
       addToast("Chat room created! Ready to invite members.", "success");
@@ -898,8 +923,26 @@ export default function App() {
   // --- Dispatch Connection Request ---
   const requestConnection = async (targetId: string, currentSession = session) => {
     isLeavingRef.current = false; // Reset leaving flag to allow connection state changes
-    const activeSess = currentSession || session;
-    if (!activeSess) return;
+    let activeSess = currentSession || session;
+    if (!activeSess) {
+      // Fallback: Dynamically generate session if still null
+      const savedId = localStorage.getItem("qr_e2e_session_id");
+      const newId = savedId && /^[0-9a-f-]{36}$/i.test(savedId) ? savedId : generateUUID();
+      activeSess = {
+        id: newId,
+        avatarSeed: Math.random().toString(36).substring(7),
+        name: generateRandomName(),
+        connectedRoomId: null,
+        lastActive: Date.now()
+      };
+      setSession(activeSess);
+      localStorage.setItem("qr_e2e_session_id", activeSess.id);
+      
+      // Async save to database
+      set(ref(db, `sessions/${newId}`), activeSess).catch((err) => {
+        console.error("Failed to async create session in DB:", err);
+      });
+    }
 
     const sanitized = targetId.trim().replace(/[-\s]/g, "");
 
@@ -908,6 +951,7 @@ export default function App() {
       setIsConnecting(true);
       try {
         const codeSnap = await get(ref(db, `codes/${sanitized}`));
+
         if (codeSnap.exists()) {
           const val = codeSnap.val();
           const roomId = val.roomId;
