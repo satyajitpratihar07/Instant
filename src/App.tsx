@@ -1726,7 +1726,7 @@ export default function App() {
         {/* Full Page Chatbot Window Panel */}
         <div
           id="chatbot-window-panel"
-          className={`fixed inset-0 z-[100] flex flex-col overflow-y-auto backdrop-blur-xl transition-all duration-500 ${
+          className={`fixed inset-0 z-[100] flex flex-col overflow-hidden backdrop-blur-xl transition-all duration-500 ${
             isBotOpen
               ? "opacity-100 pointer-events-auto scale-100"
               : "opacity-0 pointer-events-none scale-95"
@@ -1763,9 +1763,9 @@ export default function App() {
           </div>
 
           {/* Main Content Area */}
-          <div className="flex-grow max-w-5xl mx-auto w-full px-6 flex flex-col gap-6 pb-12">
+          <div className="flex-1 max-w-5xl mx-auto w-full px-6 flex flex-col gap-6 pb-6 overflow-hidden">
             {/* Messages Display Box */}
-            <div className={`p-6 rounded-[2rem] border shadow-2xl flex flex-col justify-end min-h-[320px] max-h-[420px] ${
+            <div className={`flex-1 p-6 rounded-[2rem] border shadow-2xl flex flex-col overflow-hidden ${
               isDarkMode 
                 ? "bg-[#121216]/60 border-cyan-500/20 shadow-cyan-500/5" 
                 : "bg-white/80 border-slate-200/80 shadow-slate-200/50"
@@ -1796,9 +1796,9 @@ export default function App() {
             </div>
 
             {/* Options Chips Section */}
-            <div className="space-y-4">
+            <div className="flex-shrink-0 space-y-3 pb-2">
               <div className="text-left">
-                <h4 className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                <h4 className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
                   Select a topic to ask the assistant
                 </h4>
               </div>
