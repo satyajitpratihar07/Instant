@@ -1497,26 +1497,20 @@ export default function App() {
                       <span>GNIT - IT Student</span>
                     </div>
 
-                    {/* Creative details section */}
-                    <div className="mt-3.5 w-full border-t border-slate-200 dark:border-white/5 pt-3.5 space-y-1.5 text-left text-[10px] text-slate-600 dark:text-slate-400 font-semibold max-w-[240px]">
-                      <p className="flex items-center gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shrink-0"></span>
-                        <span className="truncate">Guru Nanak Institute of Technology</span>
-                      </p>
-                      <p className="flex items-center gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 shrink-0"></span>
-                        <span>Frontend & Mobile App Developer</span>
-                      </p>
-                      <p className="flex items-center gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-purple-400 shrink-0"></span>
-                        <span>Secure Web Application Builder</span>
-                      </p>
+                    {/* Developer Photo */}
+                    <div className="relative mt-4 mb-2 w-32 h-32 md:w-36 md:h-36 rounded-2xl overflow-hidden border border-cyan-500/25 dark:border-cyan-500/20 shadow-lg shadow-cyan-500/5 group/photo select-none">
+                      <img
+                        src="/satyajit.png"
+                        alt="Satyajit Pratihar"
+                        className="w-full h-full object-cover transition-all duration-500 group-hover/photo:scale-105 pointer-events-none"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0C]/35 to-transparent dark:from-[#0A0A0C]/50 pointer-events-none" />
                     </div>
 
                     {/* Actions/Social Footer */}
                     <div className="mt-4 flex justify-center w-full gap-2">
                       <a
-                        href="https://www.linkedin.com/in/satyajit-pratihar"
+                        href="https://www.linkedin.com/in/satyajit-pratihar-911182341/"
                         target="_blank"
                         rel="noopener noreferrer"
                         className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-[9px] font-black uppercase tracking-wider rounded-xl transition-all hover:scale-[1.03] active:scale-[0.97] cursor-pointer shadow-sm ${isDarkMode
