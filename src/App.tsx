@@ -1429,11 +1429,12 @@ export default function App() {
 
               {/* Right Side: Action Buttons & Developer Credits Stacked */}
               <div className="lg:col-span-5 flex flex-col gap-6 w-full max-w-md mx-auto">
-                <div id="action-buttons-grid" className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full select-none">
+                <div id="action-buttons-grid" className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
                   <button
                     id="btn-generate-flow"
                     onClick={handleCreateRoom}
-                    className="flex flex-col items-center gap-4 p-6 rounded-[2rem] border transition-all duration-300 cursor-pointer bg-gradient-to-tr from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white shadow-xl shadow-cyan-500/10 border-white/5 hover:scale-[1.02] group"
+                    style={{ touchAction: "manipulation" }}
+                    className="flex flex-col items-center gap-4 p-6 rounded-[2rem] border transition-all duration-300 cursor-pointer bg-gradient-to-tr from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white shadow-xl shadow-cyan-500/10 border-white/5 hover:scale-[1.02] group select-none"
                   >
                     <div className="p-4 rounded-2xl bg-white/10 text-white">
                       <QrCode className="w-8 h-8 group-hover:rotate-6 transition-transform" />
@@ -1449,7 +1450,8 @@ export default function App() {
                   <button
                     id="btn-scan-flow"
                     onClick={() => setView("scan")}
-                    className={`flex flex-col items-center gap-4 p-6 rounded-[2rem] border transition-all duration-300 cursor-pointer hover:scale-[1.02] group ${isDarkMode
+                    style={{ touchAction: "manipulation" }}
+                    className={`flex flex-col items-center gap-4 p-6 rounded-[2rem] border transition-all duration-300 cursor-pointer hover:scale-[1.02] group select-none ${isDarkMode
                       ? "bg-white/5 border-white/5 hover:border-cyan-500/30 hover:bg-white/10 text-white"
                       : "bg-white border-slate-200 hover:border-indigo-600 hover:bg-slate-50 text-slate-800"
                       }`}
