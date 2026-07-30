@@ -1111,7 +1111,7 @@ export default function App() {
                 <p className="text-[9px] text-slate-400 uppercase tracking-widest font-black">
                   Developed By
                 </p>
-                <h4 className="text-xs font-black mt-1 bg-gradient-to-r from-cyan-400 via-indigo-400 to-purple-400 bg-clip-text text-transparent uppercase tracking-wider">
+                <h4 className="text-sm md:text-base font-black mt-1 bg-gradient-to-r from-cyan-400 via-indigo-400 to-purple-400 bg-clip-text text-transparent uppercase tracking-wider">
                   Satyajit Pratihar
                 </h4>
                 <p className="text-[10px] font-black uppercase tracking-wider mt-0.5 bg-gradient-to-r from-cyan-400 to-teal-400 bg-clip-text text-transparent drop-shadow-[0_0_8px_rgba(6,182,212,0.3)]">
