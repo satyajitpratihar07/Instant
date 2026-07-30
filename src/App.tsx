@@ -53,6 +53,94 @@ function generateRandomName(): string {
   return "User";
 }
 
+const CustomCursor: React.FC = () => {
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [trail, setTrail] = useState({ x: 0, y: 0 });
+  const [isHovered, setIsHovered] = useState(false);
+  const [isClicked, setIsClicked] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      setPosition({ x: e.clientX, y: e.clientY });
+      setIsVisible(true);
+    };
+
+    const handleMouseDown = () => setIsClicked(true);
+    const handleMouseUp = () => setIsClicked(false);
+
+    const handleMouseOver = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === "BUTTON" ||
+        target.tagName === "A" ||
+        target.closest("button") ||
+        target.closest("a") ||
+        target.classList.contains("cursor-pointer")
+      ) {
+        setIsHovered(true);
+      } else {
+        setIsHovered(false);
+      }
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mousedown", handleMouseDown);
+    window.addEventListener("mouseup", handleMouseUp);
+    window.addEventListener("mouseover", handleMouseOver);
+
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mousedown", handleMouseDown);
+      window.removeEventListener("mouseup", handleMouseUp);
+      window.removeEventListener("mouseover", handleMouseOver);
+    };
+  }, []);
+
+  const requestRef = useRef<number | null>(null);
+  useEffect(() => {
+    const animateTrail = () => {
+      setTrail((prev) => {
+        const dx = position.x - prev.x;
+        const dy = position.y - prev.y;
+        return {
+          x: prev.x + dx * 0.15,
+          y: prev.y + dy * 0.15
+        };
+      });
+      requestRef.current = requestAnimationFrame(animateTrail);
+    };
+    requestRef.current = requestAnimationFrame(animateTrail);
+    return () => {
+      if (requestRef.current) cancelAnimationFrame(requestRef.current);
+    };
+  }, [position]);
+
+  if (!isVisible) return null;
+
+  return (
+    <>
+      <div
+        className="fixed top-0 left-0 w-2 h-2 bg-cyan-400 rounded-full pointer-events-none z-[99999] -translate-x-1/2 -translate-y-1/2 mix-blend-difference hidden md:block"
+        style={{
+          transform: `translate3d(${position.x}px, ${position.y}px, 0) scale(${isClicked ? 0.8 : 1})`,
+          transition: "transform 0.05s linear"
+        }}
+      />
+      <div
+        className={`fixed top-0 left-0 w-8 h-8 rounded-full border pointer-events-none z-[99998] -translate-x-1/2 -translate-y-1/2 hidden md:block transition-all duration-300 ${
+          isHovered 
+            ? "border-cyan-400 bg-cyan-400/10 scale-150" 
+            : "border-indigo-400/40 bg-transparent"
+        }`}
+        style={{
+          transform: `translate3d(${trail.x}px, ${trail.y}px, 0) scale(${isClicked ? 1.2 : 1})`
+        }}
+      />
+    </>
+  );
+};
+
 export default function App() {
   // --- Core State ---
   const [session, setSession] = useState<Session | null>(null);
@@ -1173,6 +1261,7 @@ export default function App() {
       className={`font-sans transition-colors duration-300 w-full ${isDarkMode ? "bg-sleek-body text-slate-100" : "bg-slate-50 text-slate-800"
         } ${view === "chat" ? "fixed left-0 top-0 overflow-hidden" : "min-h-[100dvh]"}`}
     >
+      <CustomCursor />
       {/* Background Decorative Tech Grids */}
       <div id="grid-background" className="fixed inset-0 pointer-events-none overflow-hidden z-0">
         <div

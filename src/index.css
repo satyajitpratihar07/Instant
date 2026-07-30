@@ -142,6 +142,12 @@ html, body, #root {
   }
 }
 
+@media (min-width: 768px) {
+  html, body, a, button, input, select, textarea, [role="button"], .cursor-pointer {
+    cursor: none !important;
+  }
+}
+
 
 
 

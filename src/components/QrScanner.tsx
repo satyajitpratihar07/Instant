@@ -26,6 +26,10 @@ export default function QrScanner({ onScanSuccess, onCancel, isDarkMode }: QrSca
 
     const startScanner = async () => {
       try {
+        const cameras = await Html5Qrcode.getCameras();
+        if (!cameras || cameras.length === 0) {
+          throw new Error("No cameras found on your device.");
+        }
 
         // Find back/environment camera if available
         const backCamera = cameras.find(c => 
